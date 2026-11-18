@@ -35,6 +35,9 @@ spring:
             allowedMethods: "*"
             allowedHeaders: "*"
             exposedHeaders: "X-Correlation-Id"
+      # el gateway y el microservicio devuelven los dos el X-Correlation-Id: queda uno solo
+      default-filters:
+        - DedupeResponseHeader=X-Correlation-Id, RETAIN_FIRST
       routes:
         # Endpoints que solo usan otros microservicios: el gateway no los expone
         # (confirmar/liberar reservas, liberar lugares vendidos, /internal/**).
