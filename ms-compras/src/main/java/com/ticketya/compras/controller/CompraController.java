@@ -59,7 +59,7 @@ public class CompraController {
 
     @GetMapping
     @Operation(summary = "Mis compras")
-    public List<CompraResponse> mias(@RequestHeader("X-Usuario-Id") Long usuarioId) {
+    public List<CompraResponse> mias(@Parameter(hidden = true) @RequestHeader("X-Usuario-Id") Long usuarioId) {
         return compraService.deUsuario(usuarioId);
     }
 

@@ -8,6 +8,7 @@ import com.ticketya.compras.service.DevolucionService;
 import com.ticketya.compras.service.EntradaService;
 import com.ticketya.compras.service.QrService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -37,7 +38,7 @@ public class EntradaController {
 
     @GetMapping
     @Operation(summary = "Mis entradas")
-    public List<EntradaResponse> mias(@RequestHeader("X-Usuario-Id") Long usuarioId) {
+    public List<EntradaResponse> mias(@Parameter(hidden = true) @RequestHeader("X-Usuario-Id") Long usuarioId) {
         return entradaService.deUsuario(usuarioId);
     }
 
@@ -47,14 +48,14 @@ public class EntradaController {
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(responseCode = "404", description = "No existe",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-    public EntradaResponse obtener(@PathVariable Long id, @RequestHeader("X-Usuario-Id") Long usuarioId) {
+    public EntradaResponse obtener(@PathVariable Long id, @Parameter(hidden = true) @RequestHeader("X-Usuario-Id") Long usuarioId) {
         return entradaService.obtener(id, usuarioId);
     }
 
     @GetMapping(value = "/{id}/qr", produces = MediaType.IMAGE_PNG_VALUE)
     @Operation(summary = "Imagen PNG del código QR de la entrada")
     @ApiResponse(responseCode = "200", description = "Imagen PNG", content = @Content(mediaType = "image/png"))
-    public ResponseEntity<byte[]> qr(@PathVariable Long id, @RequestHeader("X-Usuario-Id") Long usuarioId) {
+    public ResponseEntity<byte[]> qr(@PathVariable Long id, @Parameter(hidden = true) @RequestHeader("X-Usuario-Id") Long usuarioId) {
         EntradaResponse entrada = entradaService.obtener(id, usuarioId);
         return ResponseEntity.ok().contentType(MediaType.IMAGE_PNG).body(qrService.generarPng(entrada.codigoQr()));
     }
@@ -71,7 +72,7 @@ public class EntradaController {
     @ApiResponse(responseCode = "422", description = "Faltan menos de 72 horas para el evento",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     public SolicitudDevolucionResponse solicitarDevolucion(@PathVariable Long id,
-                                                           @RequestHeader("X-Usuario-Id") Long usuarioId,
+                                                           @Parameter(hidden = true) @RequestHeader("X-Usuario-Id") Long usuarioId,
                                                            @Valid @RequestBody(required = false) DevolucionRequest body) {
         return devolucionService.solicitar(id, usuarioId, body == null ? null : body.motivo());
     }

@@ -69,8 +69,8 @@ public class EventoController {
     @ApiResponse(responseCode = "404", description = "No existe el lugar",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     public EventoResponse crear(@Valid @RequestBody EventoRequest request,
-                                @Parameter(example = "10") @RequestHeader("X-Usuario-Id") Long usuarioId,
-                                @Parameter(example = "ORGANIZADOR") @RequestHeader(value = "X-Rol", required = false) String rol) {
+                                @Parameter(hidden = true) @RequestHeader("X-Usuario-Id") Long usuarioId,
+                                @Parameter(hidden = true) @RequestHeader(value = "X-Rol", required = false) String rol) {
         return eventoService.crear(request, usuarioId, Rol.desde(rol));
     }
 
@@ -89,8 +89,8 @@ public class EventoController {
     @ApiResponse(responseCode = "409", description = "El evento no está en borrador",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     public EventoResponse actualizar(@PathVariable Long id, @Valid @RequestBody EventoRequest request,
-                                     @RequestHeader("X-Usuario-Id") Long usuarioId,
-                                     @RequestHeader(value = "X-Rol", required = false) String rol) {
+                                     @Parameter(hidden = true) @RequestHeader("X-Usuario-Id") Long usuarioId,
+                                     @Parameter(hidden = true) @RequestHeader(value = "X-Rol", required = false) String rol) {
         return eventoService.actualizar(id, request, usuarioId, Rol.desde(rol));
     }
 
@@ -100,8 +100,8 @@ public class EventoController {
     @ApiResponse(responseCode = "409", description = "Sector ajeno al lugar o evento no está en borrador",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     public EventoResponse definirPrecios(@PathVariable Long id, @Valid @RequestBody PreciosRequest request,
-                                         @RequestHeader("X-Usuario-Id") Long usuarioId,
-                                         @RequestHeader(value = "X-Rol", required = false) String rol) {
+                                         @Parameter(hidden = true) @RequestHeader("X-Usuario-Id") Long usuarioId,
+                                         @Parameter(hidden = true) @RequestHeader(value = "X-Rol", required = false) String rol) {
         return eventoService.definirPrecios(id, request, usuarioId, Rol.desde(rol));
     }
 
@@ -114,8 +114,8 @@ public class EventoController {
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(responseCode = "502", description = "ms-reservas no respondió; el evento sigue en borrador",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-    public EventoResponse publicar(@PathVariable Long id, @RequestHeader("X-Usuario-Id") Long usuarioId,
-                                   @RequestHeader(value = "X-Rol", required = false) String rol) {
+    public EventoResponse publicar(@PathVariable Long id, @Parameter(hidden = true) @RequestHeader("X-Usuario-Id") Long usuarioId,
+                                   @Parameter(hidden = true) @RequestHeader(value = "X-Rol", required = false) String rol) {
         return eventoService.publicar(id, usuarioId, Rol.desde(rol));
     }
 
@@ -139,13 +139,13 @@ public class EventoController {
     @ApiResponse(responseCode = "403", description = "No es administrador",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     public EventoResponse suspender(@PathVariable Long id, @RequestBody(required = false) CambioEstadoRequest body,
-                                    @RequestHeader(value = "X-Rol", required = false) String rol) {
+                                    @Parameter(hidden = true) @RequestHeader(value = "X-Rol", required = false) String rol) {
         return eventoService.suspender(id, body == null ? null : body.motivo(), Rol.desde(rol));
     }
 
     @PostMapping("/{id}/reanudar")
     @Operation(summary = "Reanudar un evento suspendido (solo ADMIN)")
-    public EventoResponse reanudar(@PathVariable Long id, @RequestHeader(value = "X-Rol", required = false) String rol) {
+    public EventoResponse reanudar(@PathVariable Long id, @Parameter(hidden = true) @RequestHeader(value = "X-Rol", required = false) String rol) {
         return eventoService.reanudar(id, Rol.desde(rol));
     }
 
@@ -158,7 +158,7 @@ public class EventoController {
     @ApiResponse(responseCode = "409", description = "El evento ya finalizó",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     public EventoResponse cancelar(@PathVariable Long id, @RequestBody(required = false) CambioEstadoRequest body,
-                                   @RequestHeader(value = "X-Rol", required = false) String rol) {
+                                   @Parameter(hidden = true) @RequestHeader(value = "X-Rol", required = false) String rol) {
         return eventoService.cancelar(id, body == null ? null : body.motivo(), Rol.desde(rol));
     }
 }

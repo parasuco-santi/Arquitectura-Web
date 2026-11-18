@@ -32,8 +32,8 @@ public class DevolucionController {
     @Operation(summary = "Listar solicitudes de devolución",
             description = "Un ADMIN ve todas; cualquier otro rol ve solo las propias.")
     public List<SolicitudDevolucionResponse> listar(
-            @RequestHeader("X-Usuario-Id") Long usuarioId,
-            @Parameter(example = "ADMIN") @RequestHeader(value = "X-Rol", required = false) String rol,
+            @Parameter(hidden = true) @RequestHeader("X-Usuario-Id") Long usuarioId,
+            @Parameter(hidden = true) @RequestHeader(value = "X-Rol", required = false) String rol,
             @Parameter(example = "PENDIENTE") @RequestParam(required = false) EstadoSolicitud estado) {
         return devolucionService.listar(usuarioId, Rol.desde(rol), estado);
     }
@@ -49,8 +49,8 @@ public class DevolucionController {
     @ApiResponse(responseCode = "503", description = "ms-reservas o ms-pagos no disponibles (se puede reintentar)",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     public SolicitudDevolucionResponse aprobar(@PathVariable Long id,
-                                               @Parameter(example = "1") @RequestHeader("X-Usuario-Id") Long adminId,
-                                               @Parameter(example = "ADMIN") @RequestHeader(value = "X-Rol", required = false) String rol) {
+                                               @Parameter(hidden = true) @RequestHeader("X-Usuario-Id") Long adminId,
+                                               @Parameter(hidden = true) @RequestHeader(value = "X-Rol", required = false) String rol) {
         return devolucionService.aprobar(id, adminId, Rol.desde(rol));
     }
 
@@ -61,8 +61,8 @@ public class DevolucionController {
     @ApiResponse(responseCode = "409", description = "La solicitud ya fue resuelta",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     public SolicitudDevolucionResponse rechazar(@PathVariable Long id,
-                                                @RequestHeader("X-Usuario-Id") Long adminId,
-                                                @RequestHeader(value = "X-Rol", required = false) String rol,
+                                                @Parameter(hidden = true) @RequestHeader("X-Usuario-Id") Long adminId,
+                                                @Parameter(hidden = true) @RequestHeader(value = "X-Rol", required = false) String rol,
                                                 @Valid @RequestBody(required = false) ResolucionRequest body) {
         return devolucionService.rechazar(id, adminId, Rol.desde(rol), body == null ? null : body.observacion());
     }
