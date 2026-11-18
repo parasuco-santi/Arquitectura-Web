@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Preferencias y recomendaciones contra un MongoDB real (Testcontainers). */
 @SpringBootTest
+@org.springframework.test.context.ActiveProfiles("test")
 @Testcontainers(disabledWithoutDocker = true)
 class RecomendacionesTest {
 
