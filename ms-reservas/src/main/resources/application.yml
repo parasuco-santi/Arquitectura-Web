@@ -16,11 +16,19 @@ spring:
       hibernate:
         jdbc.batch_size: 100
         order_inserts: true
+  rabbitmq:
+    host: ${RABBIT_HOST:localhost}
+    username: ticketya
+    password: ticketya
 
 servicios:
   timeout-ms: 2000
   eventos:
     url: http://localhost:8081
+
+fila:
+  # clave compartida con ms-fila para validar el turno de la fila virtual
+  secreto: ${FILA_SECRETO:ticketya-fila-virtual-clave-de-desarrollo-2026}
 
 reservas:
   # tiempo que se bloquean los lugares mientras el cliente paga
@@ -40,5 +48,7 @@ management:
         include: health,info
 
 logging:
+  pattern:
+    level: "%5p [${spring.application.name:},%X{correlationId:-}]"
   level:
     com.ticketya: INFO

@@ -106,6 +106,11 @@ public class Evento {
         this.actualizadoEn = LocalDateTime.now();
     }
 
+    public void reprogramar(LocalDateTime nuevaFecha) {
+        this.fechaHora = nuevaFecha;
+        this.actualizadoEn = LocalDateTime.now();
+    }
+
     public void actualizarDatos(String nombre, String descripcion, TipoEvento tipo, List<String> participantes,
                                 LocalDateTime fechaHora, boolean altaDemanda, Integer limite) {
         this.nombre = nombre;

@@ -1,6 +1,15 @@
 # Modelo de datos
 
-Cada microservicio tiene su propia base PostgreSQL (`eventos_db`, `reservas_db`, `compras_db`, `pagos_db`).
+Cada microservicio tiene su propia base. **(E2)** Hay tres tecnologías según el tipo de dato:
+
+| Motor | Bases / uso | Servicios |
+|---|---|---|
+| PostgreSQL 16 | `usuarios_db`, `eventos_db`, `reservas_db`, `compras_db`, `pagos_db` (una base por servicio) | ms-usuarios, ms-eventos, ms-reservas, ms-compras, ms-pagos |
+| MongoDB 7 | `recomendaciones_db`, `notificaciones_db`, `bitacora_db` | ms-recomendaciones, ms-notificaciones, ms-bitacora |
+| Redis 7 | cache del catálogo (claves `ticketya:*`) y fila virtual (claves `fila:*`) | ms-eventos, ms-fila |
+
+La justificación de cada elección está en [06-decisiones-tecnologicas.md](06-decisiones-tecnologicas.md).
+
 **No hay claves foráneas entre bases**: las referencias a datos de otro servicio se guardan como un id
 "lógico" (columna `*_id` sin FK) y, cuando hace falta, con una copia de los datos necesarios.
 
@@ -46,7 +55,7 @@ erDiagram
         varchar nombre
         varchar descripcion
         varchar tipo "RECITAL | FESTIVAL | TEATRO | DEPORTE | CONFERENCIA | OTRO"
-        bigint organizador_id "ref usuario (E2)"
+        bigint organizador_id "ref ms-usuarios.usuario"
         timestamp fecha_hora
         bigint lugar_id FK
         varchar estado "BORRADOR | PUBLICADO | AGOTADO | SUSPENDIDO | CANCELADO | FINALIZADO"
@@ -68,6 +77,10 @@ erDiagram
     }
 ```
 
+**(E2) Outbox:** ms-eventos tiene además la tabla `mensaje_saliente` (misma estructura que en ms-compras) donde
+se guardan los mensajes `evento.publicado`, `evento.cancelado` y `evento.reprogramado` en la misma transacción
+que el cambio del evento.
+
 ## ms-reservas (`reservas_db`)
 
 ```mermaid
@@ -84,6 +97,7 @@ erDiagram
         varchar nombre_evento "copia"
         timestamp fecha_evento "copia"
         int limite_por_cliente "copia"
+        boolean alta_demanda "copia (E2): exige turno de la fila"
         boolean habilitado
         timestamp actualizado_en
     }
@@ -111,7 +125,7 @@ erDiagram
     }
     RESERVA {
         bigint id PK
-        bigint usuario_id "ref usuario (E2)"
+        bigint usuario_id "ref ms-usuarios.usuario"
         bigint evento_id
         bigint sector_id
         varchar tipo_sector
@@ -152,11 +166,12 @@ erDiagram
 erDiagram
     COMPRA ||--o{ ENTRADA : emite
     ENTRADA ||--o{ SOLICITUD_DEVOLUCION : "puede tener"
+    ENTRADA ||--o{ REGISTRO_ACCESO : "se escanea (E2)"
 
     COMPRA {
         bigint id PK
         varchar idempotency_key UK
-        bigint usuario_id "ref usuario (E2)"
+        bigint usuario_id "ref ms-usuarios.usuario"
         bigint reserva_id UK "ref ms-reservas.reserva"
         bigint evento_id "ref ms-eventos.evento"
         varchar nombre_evento "copia"
@@ -187,6 +202,27 @@ erDiagram
         varchar estado "VALIDA | DEVUELTA | CANCELADA | UTILIZADA"
         varchar lugar_activo UK "evento-asiento mientras está VALIDA"
         timestamp emitida_en
+        timestamp utilizada_en "E2: ingreso al evento"
+        varchar puerta_ingreso "E2"
+    }
+    REGISTRO_ACCESO {
+        bigint id PK
+        bigint evento_id "índice"
+        varchar codigo_qr "el que se escaneó"
+        bigint entrada_id "null si el QR no existe"
+        bigint personal_id "usuario ACCESO"
+        varchar puerta
+        varchar resultado "PERMITIDO | YA_UTILIZADA | OTRO_EVENTO | INEXISTENTE | DEVUELTA | CANCELADA"
+        timestamp fecha
+    }
+    MENSAJE_SALIENTE {
+        bigint id PK
+        varchar routing_key "compra.confirmada"
+        varchar payload "JSON"
+        varchar correlation_id
+        timestamp creado_en
+        timestamp publicado_en "null = pendiente (índice)"
+        int intentos
     }
     SOLICITUD_DEVOLUCION {
         bigint id PK
@@ -201,6 +237,23 @@ erDiagram
         bigint reintegro_id "ref ms-pagos.reintegro"
     }
 ```
+
+## ms-usuarios (`usuarios_db`) (E2)
+
+```mermaid
+erDiagram
+    USUARIO {
+        bigint id PK
+        varchar email UK
+        varchar nombre
+        varchar password_hash "BCrypt"
+        varchar rol "CLIENTE | ORGANIZADOR | ADMIN | ACCESO"
+        boolean activo
+        timestamp creado_en
+    }
+```
+
+Usuarios precargados para probar: ver README (admin, 2 organizadores, 2 clientes y personal de acceso).
 
 ## ms-pagos (`pagos_db`)
 
@@ -270,7 +323,8 @@ flowchart LR
 | `reserva_id` | compras_db.compra (UNIQUE) | ms-reservas.reserva | Una compra por reserva. |
 | `compra_id` | pagos_db.pago | ms-compras.compra | Se manda al cobrar. |
 | `pago_id`, `reintegro_id` | compras_db | ms-pagos | Se guardan con la respuesta de ms-pagos. |
-| `usuario_id`, `organizador_id` | todas | (ms-usuarios, entrega 2) | Hoy viene del header `X-Usuario-Id`. |
+| `usuario_id`, `organizador_id`, `personal_id` | todas | ms-usuarios.usuario | Sale del `sub` del JWT (el gateway lo pasa en `X-Usuario-Id`). |
+| `eventoId`, `usuarioId`, `compraId` | MongoDB (recomendaciones, notificaciones, bitácora) | ms-eventos / ms-usuarios / ms-compras | Llegan en los mensajes de RabbitMQ. |
 
 ## Entidades solapadas entre bases
 
@@ -285,9 +339,109 @@ Hay datos que aparecen en más de una base. Es una decisión consciente para que
 | Asiento | ms-eventos `asiento` | ms-reservas `asiento_disponibilidad` | fila y número (+ estado propio) | Al publicar. |
 | Asiento vendido | ms-reservas `asiento_disponibilidad` (VENDIDO) | ms-compras `entrada` (`lugar_activo`) | evento + asiento | Al confirmar la compra / al devolver. |
 | Pago | ms-pagos `pago` | ms-compras `compra` | id del pago, medio, últimos dígitos | Con la respuesta del cobro. |
+| Fecha del evento (E2) | ms-eventos `evento` | ms-reservas, ms-compras, ms-recomendaciones | fecha y hora | Al reprogramar (REST a reservas, mensaje al resto). |
+| Evento publicado (E2) | ms-eventos `evento` | ms-recomendaciones `eventos` | nombre, tipo, participantes, ciudad, fecha, precio mínimo, cancelado | Mensajes `evento.*`. |
+| Compra confirmada (E2) | ms-compras `compra` | ms-recomendaciones `historial_compras` | compra, usuario, evento, cantidad | Mensaje `compra.confirmada`. |
 
 Riesgos y cómo se manejan:
-- Si se cambiara la fecha de un evento publicado, las copias quedarían viejas. Por eso en la entrega 1 solo se
-  pueden modificar eventos en borrador; el cambio de evento publicado (con notificación) es de la entrega 2.
+- **(E2)** La fecha de un evento publicado se puede cambiar con `POST /eventos/{id}/reprogramar`: ms-eventos
+  actualiza la copia de ms-reservas en el momento (REST) y emite `evento.reprogramado`, con el que ms-compras
+  actualiza `compra.fecha_evento` (plazo de 72 hs para devolver) y ms-recomendaciones su catálogo
+  (consistencia eventual). El resto de los datos se sigue pudiendo modificar solo en borrador.
 - El estado AGOTADO en `ms-eventos` es informativo y se actualiza *best effort*: la disponibilidad real siempre se
   consulta en `ms-reservas`.
+
+## Datos NoSQL (E2)
+
+### MongoDB
+
+En MongoDB no hay un esquema fijo; estos son los documentos que guarda cada servicio y sus índices.
+
+```mermaid
+erDiagram
+    PREFERENCIAS {
+        long _id "usuarioId"
+        array tiposEvento "[RECITAL, TEATRO]"
+        array artistasFavoritos "[Los Piojos]"
+        string ciudad
+        array artistasNormalizados "índice"
+        string ciudadNormalizada "índice"
+        date actualizadas
+    }
+    EVENTOS {
+        long _id "eventoId"
+        string nombre
+        string tipo
+        array participantes
+        array participantesNormalizados "índice"
+        string lugar
+        string ciudad
+        string ciudadNormalizada "índice"
+        date fechaHora
+        decimal precioMinimo
+        bool cancelado
+    }
+    HISTORIAL_COMPRAS {
+        long _id "compraId (idempotencia)"
+        long usuarioId "índice"
+        long eventoId "índice"
+        int cantidad
+        date fecha
+    }
+    PREFERENCIAS ||--o{ HISTORIAL_COMPRAS : "usuarioId"
+    EVENTOS ||--o{ HISTORIAL_COMPRAS : "eventoId"
+```
+
+*`recomendaciones_db` (ms-recomendaciones).* Índice compuesto `{usuarioId, eventoId}` en el historial. La
+recomendación "quienes compraron también compraron" es un *aggregation pipeline*:
+`$match` (compradores del evento) → `$group` por `eventoId` con `$addToSet: usuarioId` → `$size` → `$sort`.
+
+```mermaid
+erDiagram
+    NOTIFICACIONES {
+        string _id "ObjectId"
+        string clave UK "TIPO:referencia:usuarioId (idempotencia)"
+        long usuarioId "índice"
+        string tipo "COMPRA_CONFIRMADA | EVENTO_CANCELADO | EVENTO_REPROGRAMADO | ARTISTA_FAVORITO"
+        string canal "EMAIL"
+        long eventoId
+        string asunto
+        string mensaje
+        string destino "email"
+        string estado "PENDIENTE | ENVIADA | FALLIDA | DESCARTADA"
+        int intentos
+        string ultimoError
+        string correlationId
+        date creada
+        date enviada
+        date proximoIntento "índice {estado, proximoIntento}"
+        long version "bloqueo optimista"
+    }
+    REGISTROS {
+        string _id "ObjectId"
+        string correlationId "índice"
+        string servicio
+        string operacion "índice {operacion, fecha}"
+        string resultado
+        long usuarioId "índice"
+        object detalle "libre: cada operación manda lo suyo"
+        date fecha "índice"
+        date recibido
+    }
+```
+
+*`notificaciones_db` (ms-notificaciones)* guarda `notificaciones`; *`bitacora_db` (ms-bitacora)* guarda `registros`.
+
+### Redis
+
+| Clave | Tipo | Servicio | Contenido | Vida |
+|---|---|---|---|---|
+| `ticketya:eventos::{id}` | string (JSON) | ms-eventos | Detalle de un evento | TTL 10 min / se borra al cambiar |
+| `ticketya:busquedas::{filtros}` | string (JSON) | ms-eventos | Página de resultados | TTL 60 s |
+| `ticketya:lugares::{id}`, `ticketya:lugares-ciudad::{ciudad}` | string (JSON) | ms-eventos | Lugares | TTL 1 h |
+| `fila:{evento}:config` | hash | ms-fila | organizador, tamaño de tanda, intervalo, minutos para comprar, activa | mientras dure la venta |
+| `fila:{evento}:seq` | contador (`INCR`) | ms-fila | Número de llegada | ídem |
+| `fila:{evento}:espera` | sorted set | ms-fila | clientes en espera, score = número de llegada | ídem |
+| `fila:{evento}:habilitados` | contador | ms-fila | cuántos se habilitaron (para la posición estimada) | ídem |
+| `fila:{evento}:hab:{usuario}` | string | ms-fila | cliente habilitado | TTL = minutos para comprar |
+| `fila:{evento}:tanda` | string (`SET NX PX`) | ms-fila | lock: solo una instancia habilita cada tanda | TTL = intervalo |

@@ -75,6 +75,16 @@ public class DisponibilidadController {
         return ResponseEntity.noContent().build();
     }
 
+    @PatchMapping("/{eventoId}/fecha")
+    @Operation(summary = "[Interno] Reprogramar el evento",
+            description = "Lo invoca ms-eventos cuando el organizador cambia la fecha de un evento publicado.")
+    @ApiResponse(responseCode = "204", description = "Actualizado")
+    public ResponseEntity<Void> reprogramar(@PathVariable Long eventoId,
+                                            @Valid @RequestBody com.ticketya.reservas.dto.ReprogramacionRequest request) {
+        disponibilidadService.reprogramar(eventoId, request.fechaEvento());
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{eventoId}/liberaciones")
     @Operation(summary = "[Interno] Liberar un lugar vendido (devolución)",
             description = "Lo invoca ms-compras cuando un administrador aprueba una devolución. Requiere "

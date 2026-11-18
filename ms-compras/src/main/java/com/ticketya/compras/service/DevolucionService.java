@@ -37,10 +37,13 @@ public class DevolucionService {
     private final TransactionTemplate tx;
     private final Clock clock;
     private final int horasMinimas;
+    private final com.ticketya.compras.trazabilidad.Bitacora bitacora;
 
     public DevolucionService(EntradaRepository entradaRepository, SolicitudDevolucionRepository solicitudRepository,
                              ReservasClient reservasClient, PagosClient pagosClient, TransactionTemplate tx,
-                             Clock clock, @Value("${devoluciones.horas-minimas:72}") int horasMinimas) {
+                             Clock clock, @Value("${devoluciones.horas-minimas:72}") int horasMinimas,
+                             com.ticketya.compras.trazabilidad.Bitacora bitacora) {
+        this.bitacora = bitacora;
         this.entradaRepository = entradaRepository;
         this.solicitudRepository = solicitudRepository;
         this.reservasClient = reservasClient;
@@ -72,6 +75,8 @@ public class DevolucionService {
             }
             SolicitudDevolucion sol = solicitudRepository.save(new SolicitudDevolucion(entrada, usuarioId, motivo, ahora));
             log.info("Solicitud de devolución {} creada para la entrada {}", sol.getId(), entradaId);
+            bitacora.registrar("devolucion.solicitada", "OK", usuarioId,
+                    java.util.Map.of("solicitudId", sol.getId(), "entradaId", entradaId));
             return SolicitudDevolucionResponse.de(sol);
         });
     }
@@ -101,6 +106,8 @@ public class DevolucionService {
             x.aprobar(adminId, reintegro.id(), LocalDateTime.now(clock));
             log.info("Devolución {} aprobada por el admin {}: entrada {} devuelta, reintegro {}", solicitudId,
                     adminId, x.getEntrada().getId(), reintegro.id());
+            bitacora.registrar("devolucion.aprobada", "OK", adminId, java.util.Map.of("solicitudId", solicitudId,
+                    "entradaId", x.getEntrada().getId(), "reintegroId", reintegro.id(), "monto", x.getEntrada().getPrecio()));
             return SolicitudDevolucionResponse.de(x);
         });
     }
@@ -114,6 +121,7 @@ public class DevolucionService {
             }
             sol.rechazar(adminId, observacion, LocalDateTime.now(clock));
             log.info("Devolución {} rechazada por el admin {}", solicitudId, adminId);
+            bitacora.registrar("devolucion.rechazada", "OK", adminId, java.util.Map.of("solicitudId", solicitudId));
             return SolicitudDevolucionResponse.de(sol);
         });
     }

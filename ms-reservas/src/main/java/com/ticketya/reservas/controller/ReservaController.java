@@ -37,6 +37,8 @@ public class ReservaController {
     @ApiResponse(responseCode = "201", description = "Reserva creada en estado PENDIENTE")
     @ApiResponse(responseCode = "400", description = "Pedido inválido (ej: asientos en un sector no numerado)",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(responseCode = "403", description = "Evento de alta demanda sin turno válido de la fila virtual",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(responseCode = "404", description = "Evento, sector o asiento inexistente",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(responseCode = "409", description = "Lugar no disponible o evento sin venta habilitada",
@@ -44,13 +46,15 @@ public class ReservaController {
     @ApiResponse(responseCode = "422", description = "Supera el límite de entradas por cliente",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     public ReservaResponse crear(@Valid @RequestBody ReservaRequest request,
-                                 @Parameter(example = "100") @RequestHeader("X-Usuario-Id") Long usuarioId) {
-        return reservaService.crear(usuarioId, request);
+                                 @Parameter(hidden = true) @RequestHeader("X-Usuario-Id") Long usuarioId,
+                                 @Parameter(description = "Turno de la fila virtual (solo eventos de alta demanda)")
+                                 @RequestHeader(value = "X-Turno-Fila", required = false) String turno) {
+        return reservaService.crear(usuarioId, request, turno);
     }
 
     @GetMapping
     @Operation(summary = "Mis reservas", description = "Reservas del usuario del header, opcionalmente por estado.")
-    public List<ReservaResponse> mias(@RequestHeader("X-Usuario-Id") Long usuarioId,
+    public List<ReservaResponse> mias(@Parameter(hidden = true) @RequestHeader("X-Usuario-Id") Long usuarioId,
                                       @RequestParam(required = false) EstadoReserva estado) {
         return reservaService.deUsuario(usuarioId, estado);
     }
@@ -61,7 +65,7 @@ public class ReservaController {
     @ApiResponse(responseCode = "404", description = "No existe",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     public ReservaResponse obtener(@PathVariable Long id,
-                                   @RequestHeader(value = "X-Usuario-Id", required = false) Long usuarioId) {
+                                   @Parameter(hidden = true) @RequestHeader(value = "X-Usuario-Id", required = false) Long usuarioId) {
         ReservaResponse r = reservaService.obtener(id);
         if (usuarioId != null && !usuarioId.equals(r.usuarioId())) {
             throw new AccesoDenegadoException("La reserva no pertenece al usuario");
@@ -75,7 +79,7 @@ public class ReservaController {
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(responseCode = "409", description = "La reserva ya fue confirmada",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-    public ReservaResponse cancelar(@PathVariable Long id, @RequestHeader("X-Usuario-Id") Long usuarioId) {
+    public ReservaResponse cancelar(@PathVariable Long id, @Parameter(hidden = true) @RequestHeader("X-Usuario-Id") Long usuarioId) {
         return reservaService.cancelarPorCliente(id, usuarioId);
     }
 

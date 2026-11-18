@@ -1,11 +1,885 @@
 {
   "info": {
     "_postman_id": "5b085454-acc6-5f07-804b-9854299958ec",
-    "name": "TicketYa - Entrega 1",
-    "description": "Requests para probar los endpoints de la entrega 1 a través del API Gateway.\n\nLas carpetas están pensadas para correrse en orden (Runner): cada request guarda en variables de la colección los ids que usan los siguientes. Antes conviene correr scripts/datos-prueba.sh para tener eventos cargados en las búsquedas.\n\nEntrega 1 sin autenticación: el usuario se indica con los headers X-Usuario-Id y X-Rol.",
+    "name": "TicketYa - Entrega 2",
+    "description": "Requests para probar los endpoints de la entrega 2 a través del API Gateway (http://localhost:8080).\n\nLas carpetas están pensadas para correrse en orden (Runner o `npx newman run postman/TicketYa.postman_collection.json`): la carpeta 0 hace login con los usuarios de prueba y guarda los JWT en variables (tokenAdmin, tokenOrganizador, tokenCliente, tokenAcceso, ...), y cada request usa Bearer con el token del rol que corresponde. Los ids que se crean se guardan en variables de la colección para los requests siguientes.\n\nAntes conviene correr scripts/datos-prueba.sh para tener eventos cargados en las búsquedas.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
+    {
+      "name": "0 - Autenticación y usuarios",
+      "item": [
+        {
+          "name": "Login admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/auth/login",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@ticketya.com\",\n  \"password\": \"admin123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"tokenAdmin\", pm.response.json().token);",
+                  "pm.test(\"trae el rol\", () => pm.expect(pm.response.json().usuario.rol).to.eql(\"ADMIN\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login organizador",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/auth/login",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"organizador@ticketya.com\",\n  \"password\": \"organizador123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"tokenOrganizador\", pm.response.json().token);",
+                  "pm.collectionVariables.set(\"organizadorId\", pm.response.json().usuario.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login organizador 2",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/auth/login",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"organizador2@ticketya.com\",\n  \"password\": \"organizador123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"tokenOrganizador2\", pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login cliente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/auth/login",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"cliente@ticketya.com\",\n  \"password\": \"cliente123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"tokenCliente\", pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login cliente 2",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/auth/login",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"cliente2@ticketya.com\",\n  \"password\": \"cliente123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"tokenCliente2\", pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login control de acceso",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/auth/login",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"acceso@ticketya.com\",\n  \"password\": \"acceso123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"tokenAcceso\", pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Registrar cliente 3 (siempre queda como CLIENTE)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/auth/registro",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "registro"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{emailCliente3}}\",\n  \"nombre\": \"Cliente Postman 3\",\n  \"password\": \"cliente123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"emailCliente3\", \"postman3-\" + Date.now() + \"@mail.com\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"rol CLIENTE\", () => pm.expect(pm.response.json().rol).to.eql(\"CLIENTE\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login cliente 3",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/auth/login",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{emailCliente3}}\",\n  \"password\": \"cliente123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"tokenCliente3\", pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Registrar cliente 4 (siempre queda como CLIENTE)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/auth/registro",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "registro"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{emailCliente4}}\",\n  \"nombre\": \"Cliente Postman 4\",\n  \"password\": \"cliente123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"emailCliente4\", \"postman4-\" + Date.now() + \"@mail.com\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"rol CLIENTE\", () => pm.expect(pm.response.json().rol).to.eql(\"CLIENTE\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login cliente 4",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/auth/login",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{emailCliente4}}\",\n  \"password\": \"cliente123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"tokenCliente4\", pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Registrar cliente 5 (siempre queda como CLIENTE)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/auth/registro",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "registro"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{emailCliente5}}\",\n  \"nombre\": \"Cliente Postman 5\",\n  \"password\": \"cliente123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"emailCliente5\", \"postman5-\" + Date.now() + \"@mail.com\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"rol CLIENTE\", () => pm.expect(pm.response.json().rol).to.eql(\"CLIENTE\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login cliente 5",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/auth/login",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{emailCliente5}}\",\n  \"password\": \"cliente123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"tokenCliente5\", pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Error] Clave incorrecta",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/auth/login",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@ticketya.com\",\n  \"password\": \"mala\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mis datos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/usuarios/me",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "usuarios",
+                "me"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"es CLIENTE\", () => pm.expect(pm.response.json().rol).to.eql(\"CLIENTE\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar usuarios (admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/usuarios",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "usuarios"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Error] Un cliente no puede listar usuarios",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/usuarios",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "usuarios"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Error] Sin token en un endpoint protegido",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/compras",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "compras"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Error] Token inválido",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer token-trucho"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/compras",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "compras"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Error] Headers de identidad falsificados no sirven",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Usuario-Id",
+                "value": "1"
+              },
+              {
+                "key": "X-Rol",
+                "value": "ADMIN"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/bitacora",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "bitacora"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
     {
       "name": "1 - Lugares",
       "item": [
@@ -17,14 +891,6 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Usuario-Id",
-                "value": "1"
-              },
-              {
-                "key": "X-Rol",
-                "value": "ADMIN"
               }
             ],
             "url": {
@@ -45,6 +911,16 @@
                   "language": "json"
                 }
               }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
             }
           },
           "event": [
@@ -83,6 +959,9 @@
                   "value": "Olavarría"
                 }
               ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           },
           "event": [
@@ -112,6 +991,9 @@
                 "lugares",
                 "{{lugarId}}"
               ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           },
           "event": [
@@ -144,6 +1026,9 @@
                 "{{sectorPlateaId}}",
                 "asientos"
               ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           },
           "event": [
@@ -166,14 +1051,6 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Usuario-Id",
-                "value": "100"
-              },
-              {
-                "key": "X-Rol",
-                "value": "CLIENTE"
               }
             ],
             "url": {
@@ -194,6 +1071,16 @@
                   "language": "json"
                 }
               }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
+              ]
             }
           },
           "event": [
@@ -221,14 +1108,6 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Usuario-Id",
-                "value": "10"
-              },
-              {
-                "key": "X-Rol",
-                "value": "ORGANIZADOR"
               }
             ],
             "url": {
@@ -249,6 +1128,16 @@
                   "language": "json"
                 }
               }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOrganizador}}",
+                  "type": "string"
+                }
+              ]
             }
           },
           "event": [
@@ -279,16 +1168,7 @@
           "name": "[Error] Publicar sin precios",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "X-Usuario-Id",
-                "value": "10"
-              },
-              {
-                "key": "X-Rol",
-                "value": "ORGANIZADOR"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{gateway}}/api/eventos/{{eventoId}}/publicar",
               "host": [
@@ -299,6 +1179,16 @@
                 "eventos",
                 "{{eventoId}}",
                 "publicar"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOrganizador}}",
+                  "type": "string"
+                }
               ]
             }
           },
@@ -322,14 +1212,6 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Usuario-Id",
-                "value": "10"
-              },
-              {
-                "key": "X-Rol",
-                "value": "ORGANIZADOR"
               }
             ],
             "url": {
@@ -352,6 +1234,16 @@
                   "language": "json"
                 }
               }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOrganizador}}",
+                  "type": "string"
+                }
+              ]
             }
           },
           "event": [
@@ -370,16 +1262,7 @@
           "name": "[Error] Otro organizador no puede publicarlo",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "X-Usuario-Id",
-                "value": "99"
-              },
-              {
-                "key": "X-Rol",
-                "value": "ORGANIZADOR"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{gateway}}/api/eventos/{{eventoId}}/publicar",
               "host": [
@@ -390,6 +1273,16 @@
                 "eventos",
                 "{{eventoId}}",
                 "publicar"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOrganizador2}}",
+                  "type": "string"
+                }
               ]
             }
           },
@@ -409,16 +1302,7 @@
           "name": "Publicar evento",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "X-Usuario-Id",
-                "value": "10"
-              },
-              {
-                "key": "X-Rol",
-                "value": "ORGANIZADOR"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{gateway}}/api/eventos/{{eventoId}}/publicar",
               "host": [
@@ -429,6 +1313,16 @@
                 "eventos",
                 "{{eventoId}}",
                 "publicar"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOrganizador}}",
+                  "type": "string"
+                }
               ]
             }
           },
@@ -460,6 +1354,9 @@
                 "eventos",
                 "{{eventoId}}"
               ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           },
           "event": [
@@ -493,6 +1390,9 @@
                 "api",
                 "eventos"
               ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           },
           "event": [
@@ -531,6 +1431,9 @@
                   "value": "La Plata"
                 }
               ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           },
           "event": [
@@ -565,6 +1468,9 @@
                   "value": "piojos"
                 }
               ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           },
           "event": [
@@ -585,7 +1491,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{gateway}}/api/eventos?organizadorId=11",
+              "raw": "{{gateway}}/api/eventos?organizadorId={{organizadorId}}",
               "host": [
                 "{{gateway}}"
               ],
@@ -596,9 +1502,12 @@
               "query": [
                 {
                   "key": "organizadorId",
-                  "value": "11"
+                  "value": "{{organizadorId}}"
                 }
               ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           },
           "event": [
@@ -645,6 +1554,9 @@
                   "value": "desc"
                 }
               ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           },
           "event": [
@@ -683,6 +1595,9 @@
                   "value": "relevancia"
                 }
               ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           },
           "event": [
@@ -721,6 +1636,9 @@
                   "value": "2"
                 }
               ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           },
           "event": [
@@ -755,6 +1673,9 @@
                   "value": "nombre"
                 }
               ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           },
           "event": [
@@ -790,6 +1711,9 @@
                 "eventos",
                 "{{eventoId}}"
               ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           },
           "event": [
@@ -823,6 +1747,9 @@
                 "{{sectorPlateaId}}",
                 "asientos"
               ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           },
           "event": [
@@ -848,10 +1775,6 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Usuario-Id",
-                "value": "100"
               }
             ],
             "url": {
@@ -872,6 +1795,16 @@
                   "language": "json"
                 }
               }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
+              ]
             }
           },
           "event": [
@@ -896,10 +1829,6 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Usuario-Id",
-                "value": "200"
               }
             ],
             "url": {
@@ -920,6 +1849,16 @@
                   "language": "json"
                 }
               }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente2}}",
+                  "type": "string"
+                }
+              ]
             }
           },
           "event": [
@@ -944,10 +1883,6 @@
                 "value": "application/json"
               },
               {
-                "key": "X-Usuario-Id",
-                "value": "100"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{claveCompra}}"
               }
@@ -970,6 +1905,16 @@
                   "language": "json"
                 }
               }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
+              ]
             }
           },
           "event": [
@@ -991,6 +1936,8 @@
                   "const c = pm.response.json();",
                   "pm.collectionVariables.set(\"compraId\", c.id);",
                   "pm.collectionVariables.set(\"entradaId\", c.entradas[0].id);",
+                  "pm.collectionVariables.set(\"codigoQr\", c.entradas[1].codigoQr);",
+                  "pm.collectionVariables.set(\"correlationCompra\", pm.response.headers.get(\"X-Correlation-Id\"));",
                   "pm.test(\"2 entradas con QR\", () => pm.expect(c.entradas.length).to.eql(2));"
                 ]
               }
@@ -1005,10 +1952,6 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Usuario-Id",
-                "value": "100"
               },
               {
                 "key": "Idempotency-Key",
@@ -1033,6 +1976,16 @@
                   "language": "json"
                 }
               }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
+              ]
             }
           },
           "event": [
@@ -1052,12 +2005,7 @@
           "name": "Mis compras",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "X-Usuario-Id",
-                "value": "100"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{gateway}}/api/compras",
               "host": [
@@ -1066,6 +2014,16 @@
               "path": [
                 "api",
                 "compras"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
               ]
             }
           },
@@ -1085,12 +2043,7 @@
           "name": "Mis entradas",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "X-Usuario-Id",
-                "value": "100"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{gateway}}/api/entradas",
               "host": [
@@ -1099,6 +2052,16 @@
               "path": [
                 "api",
                 "entradas"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
               ]
             }
           },
@@ -1118,12 +2081,7 @@
           "name": "QR de la entrada (imagen PNG)",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "X-Usuario-Id",
-                "value": "100"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{gateway}}/api/entradas/{{entradaId}}/qr",
               "host": [
@@ -1134,6 +2092,16 @@
                 "entradas",
                 "{{entradaId}}",
                 "qr"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
               ]
             }
           },
@@ -1162,10 +2130,6 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Usuario-Id",
-                "value": "300"
               }
             ],
             "url": {
@@ -1186,6 +2150,16 @@
                   "language": "json"
                 }
               }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente3}}",
+                  "type": "string"
+                }
+              ]
             }
           },
           "event": [
@@ -1211,10 +2185,6 @@
                 "value": "application/json"
               },
               {
-                "key": "X-Usuario-Id",
-                "value": "300"
-              },
-              {
                 "key": "Idempotency-Key",
                 "value": "{{$guid}}"
               }
@@ -1237,6 +2207,16 @@
                   "language": "json"
                 }
               }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente3}}",
+                  "type": "string"
+                }
+              ]
             }
           },
           "event": [
@@ -1256,12 +2236,7 @@
           "name": "La reserva quedó LIBERADA",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "X-Usuario-Id",
-                "value": "300"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{gateway}}/api/reservas/{{reservaRechazoId}}",
               "host": [
@@ -1271,6 +2246,16 @@
                 "api",
                 "reservas",
                 "{{reservaRechazoId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente3}}",
+                  "type": "string"
+                }
               ]
             }
           },
@@ -1295,10 +2280,6 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Usuario-Id",
-                "value": "100"
               }
             ],
             "url": {
@@ -1319,6 +2300,16 @@
                   "language": "json"
                 }
               }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
+              ]
             }
           },
           "event": [
@@ -1341,10 +2332,6 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Usuario-Id",
-                "value": "100"
               }
             ],
             "url": {
@@ -1365,6 +2352,16 @@
                   "language": "json"
                 }
               }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
+              ]
             }
           },
           "event": [
@@ -1395,6 +2392,9 @@
                 "{{reservaId}}",
                 "confirmar"
               ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           },
           "event": [
@@ -1417,10 +2417,6 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Usuario-Id",
-                "value": "400"
               }
             ],
             "url": {
@@ -1441,6 +2437,16 @@
                   "language": "json"
                 }
               }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente4}}",
+                  "type": "string"
+                }
+              ]
             }
           },
           "event": [
@@ -1460,12 +2466,7 @@
           "name": "Cancelar mi reserva",
           "request": {
             "method": "DELETE",
-            "header": [
-              {
-                "key": "X-Usuario-Id",
-                "value": "400"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{gateway}}/api/reservas/{{reservaCancelarId}}",
               "host": [
@@ -1475,6 +2476,16 @@
                 "api",
                 "reservas",
                 "{{reservaCancelarId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente4}}",
+                  "type": "string"
+                }
               ]
             }
           },
@@ -1503,10 +2514,6 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Usuario-Id",
-                "value": "100"
               }
             ],
             "url": {
@@ -1529,6 +2536,16 @@
                   "language": "json"
                 }
               }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
+              ]
             }
           },
           "event": [
@@ -1548,16 +2565,7 @@
           "name": "[Error] Cliente no puede aprobar",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "X-Usuario-Id",
-                "value": "100"
-              },
-              {
-                "key": "X-Rol",
-                "value": "CLIENTE"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{gateway}}/api/devoluciones/{{solicitudId}}/aprobar",
               "host": [
@@ -1568,6 +2576,16 @@
                 "devoluciones",
                 "{{solicitudId}}",
                 "aprobar"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
               ]
             }
           },
@@ -1587,16 +2605,7 @@
           "name": "Solicitudes pendientes (admin)",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "X-Usuario-Id",
-                "value": "1"
-              },
-              {
-                "key": "X-Rol",
-                "value": "ADMIN"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{gateway}}/api/devoluciones?estado=PENDIENTE",
               "host": [
@@ -1610,6 +2619,16 @@
                 {
                   "key": "estado",
                   "value": "PENDIENTE"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
                 }
               ]
             }
@@ -1630,16 +2649,7 @@
           "name": "Aprobar devolución (libera el asiento y reintegra)",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "X-Usuario-Id",
-                "value": "1"
-              },
-              {
-                "key": "X-Rol",
-                "value": "ADMIN"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{gateway}}/api/devoluciones/{{solicitudId}}/aprobar",
               "host": [
@@ -1650,6 +2660,16 @@
                 "devoluciones",
                 "{{solicitudId}}",
                 "aprobar"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
               ]
             }
           },
@@ -1670,12 +2690,7 @@
           "name": "La entrada quedó DEVUELTA",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "X-Usuario-Id",
-                "value": "100"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{gateway}}/api/entradas/{{entradaId}}",
               "host": [
@@ -1685,6 +2700,16 @@
                 "api",
                 "entradas",
                 "{{entradaId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
               ]
             }
           },
@@ -1709,14 +2734,6 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Usuario-Id",
-                "value": "1"
-              },
-              {
-                "key": "X-Rol",
-                "value": "ADMIN"
               }
             ],
             "url": {
@@ -1739,6 +2756,16 @@
                   "language": "json"
                 }
               }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
             }
           },
           "event": [
@@ -1756,7 +2783,1493 @@
       ]
     },
     {
-      "name": "7 - Administración de eventos",
+      "name": "7 - Reprogramación",
+      "item": [
+        {
+          "name": "Reprogramar el evento (organizador)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/eventos/{{eventoId}}/reprogramar",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "eventos",
+                "{{eventoId}}",
+                "reprogramar"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOrganizador}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fechaHora\": \"{{fechaNueva}}\",\n  \"motivo\": \"Cambio de agenda de la banda\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const f = new Date(Date.now() + 45*24*3600*1000); f.setHours(21,0,0,0);",
+                  "pm.collectionVariables.set(\"fechaNueva\", f.toISOString().substring(0,19));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"nueva fecha\", () => pm.expect(pm.response.json().fechaHora).to.include(pm.collectionVariables.get(\"fechaNueva\").substring(0,10)));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Error] Otro organizador no puede reprogramarlo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/eventos/{{eventoId}}/reprogramar",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "eventos",
+                "{{eventoId}}",
+                "reprogramar"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOrganizador2}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fechaHora\": \"{{fechaNueva}}\",\n  \"motivo\": \"x\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "8 - Control de acceso con QR",
+      "item": [
+        {
+          "name": "Validar QR en la puerta (PERMITIDO)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/accesos/validar",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "accesos",
+                "validar"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAcceso}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoQr\": \"{{codigoQr}}\",\n  \"eventoId\": {{eventoId}},\n  \"puerta\": \"Puerta 1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"PERMITIDO\", () => pm.expect(pm.response.json().resultado).to.eql(\"PERMITIDO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Error] El mismo QR no entra dos veces",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/accesos/validar",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "accesos",
+                "validar"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAcceso}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoQr\": \"{{codigoQr}}\",\n  \"eventoId\": {{eventoId}},\n  \"puerta\": \"Puerta 2\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 409\", () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Error] QR inexistente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/accesos/validar",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "accesos",
+                "validar"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAcceso}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoQr\": \"no-existe\",\n  \"eventoId\": {{eventoId}},\n  \"puerta\": \"Puerta 1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Error] Un cliente no puede validar entradas",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/accesos/validar",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "accesos",
+                "validar"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoQr\": \"{{codigoQr}}\",\n  \"eventoId\": {{eventoId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Resumen de ingresos del evento",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/accesos/eventos/{{eventoId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "accesos",
+                "eventos",
+                "{{eventoId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAcceso}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "9 - Reportes",
+      "item": [
+        {
+          "name": "Reporte del evento (organizador)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/reportes/eventos/{{eventoId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "eventos",
+                "{{eventoId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOrganizador}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"tiene sectores\", () => pm.expect(pm.response.json().sectores).to.be.an(\"array\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reporte del evento (admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/reportes/eventos/{{eventoId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "eventos",
+                "{{eventoId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Error] Otro organizador no ve el reporte",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/reportes/eventos/{{eventoId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "eventos",
+                "{{eventoId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOrganizador2}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Error] Un cliente no ve reportes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/reportes/eventos/{{eventoId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "eventos",
+                "{{eventoId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "10 - Preferencias y recomendaciones",
+      "item": [
+        {
+          "name": "Guardar mis preferencias",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/preferencias",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "preferencias"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente2}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tiposEvento\": [\n    \"RECITAL\"\n  ],\n  \"artistasFavoritos\": [\n    \"Banda Postman\",\n    \"Los Piojos\"\n  ],\n  \"ciudad\": \"Olavarría\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ver mis preferencias",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/preferencias",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "preferencias"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente2}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"guardó los artistas\", () => pm.expect(pm.response.json().artistasFavoritos.length).to.eql(2));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Recomendaciones para mí",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/recomendaciones",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "recomendaciones"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente2}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"es una lista\", () => pm.expect(pm.response.json()).to.be.an(\"array\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Quienes compraron esto también compraron",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/recomendaciones/eventos/{{eventoId}}/tambien-compraron",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "recomendaciones",
+                "eventos",
+                "{{eventoId}}",
+                "tambien-compraron"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Error] Un organizador no tiene preferencias",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/preferencias",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "preferencias"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOrganizador}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "11 - Notificaciones",
+      "item": [
+        {
+          "name": "Mis notificaciones (email de la compra y del cambio de fecha)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/notificaciones",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "notificaciones"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "setTimeout(() => {}, 2000); // los avisos se generan de forma asincrónica (RabbitMQ)"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const tipos = pm.response.json().map(n => n.tipo);",
+                  "pm.test(\"aviso de compra\", () => pm.expect(tipos).to.include(\"COMPRA_CONFIRMADA\"));",
+                  "pm.test(\"aviso de cambio\", () => pm.expect(tipos).to.include(\"EVENTO_REPROGRAMADO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Error] Sin token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/notificaciones",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "notificaciones"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "12 - Fila virtual (evento de alta demanda)",
+      "item": [
+        {
+          "name": "Crear evento de alta demanda",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/eventos",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "eventos"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOrganizador}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Recital Masivo Postman\",\n  \"descripcion\": \"Evento con fila virtual\",\n  \"tipo\": \"RECITAL\",\n  \"participantes\": [\"Banda Postman\"],\n  \"fechaHora\": \"{{fechaEvento}}\",\n  \"lugarId\": {{lugarId}},\n  \"altaDemanda\": true,\n  \"limiteEntradasPorCliente\": 4\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"eventoFilaId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Precios",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/eventos/{{eventoFilaId}}/precios",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "eventos",
+                "{{eventoFilaId}}",
+                "precios"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOrganizador}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"precios\": [\n    { \"sectorId\": {{sectorCampoId}}, \"precio\": 30000 },\n    { \"sectorId\": {{sectorPlateaId}}, \"precio\": 50000 }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Publicar (abre la fila sola)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/eventos/{{eventoFilaId}}/publicar",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "eventos",
+                "{{eventoFilaId}}",
+                "publicar"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOrganizador}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Configurar la fila: tandas de 10 cada 1 segundo",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/fila/eventos/{{eventoFilaId}}/configuracion",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "fila",
+                "eventos",
+                "{{eventoFilaId}}",
+                "configuracion"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOrganizador}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tamanioTanda\": 10,\n  \"intervaloSegundos\": 1,\n  \"minutosParaComprar\": 5,\n  \"activa\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "setTimeout(() => {}, 2000); // la fila la abre ms-fila al recibir el mensaje de ms-eventos"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Entrar a la fila",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/fila/eventos/{{eventoFilaId}}/ingresar",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "fila",
+                "eventos",
+                "{{eventoFilaId}}",
+                "ingresar"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"queda en la fila\", () => pm.expect([\"EN_ESPERA\",\"HABILITADO\"]).to.include(pm.response.json().estado));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Error] Reservar sin turno",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/reservas",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "reservas"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventoId\": {{eventoFilaId}},\n  \"sectorId\": {{sectorCampoId}},\n  \"cantidad\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mi turno (ya habilitado)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/fila/eventos/{{eventoFilaId}}/mi-turno",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "fila",
+                "eventos",
+                "{{eventoFilaId}}",
+                "mi-turno"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// la fila habilita por tandas: si todavía no me tocó, repito este request (hasta 20 veces, 1 s entre cada uno)",
+                  "const t = pm.response.json();",
+                  "const n = (pm.collectionVariables.get(\"intentosTurno\") || 0) * 1;",
+                  "if (t.estado !== \"HABILITADO\" && n < 20) {",
+                  "  pm.collectionVariables.set(\"intentosTurno\", n + 1);",
+                  "  setTimeout(() => {}, 1000);",
+                  "  pm.execution.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "  pm.collectionVariables.set(\"intentosTurno\", 0);",
+                  "  pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "  pm.test(\"HABILITADO\", () => pm.expect(t.estado).to.eql(\"HABILITADO\"));",
+                  "  pm.collectionVariables.set(\"turnoFila\", t.turno);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Error] Usar el turno de otro cliente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Turno-Fila",
+                "value": "{{turnoFila}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/reservas",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "reservas"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente2}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventoId\": {{eventoFilaId}},\n  \"sectorId\": {{sectorCampoId}},\n  \"cantidad\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reservar con mi turno",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Turno-Fila",
+                "value": "{{turnoFila}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/reservas",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "reservas"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventoId\": {{eventoFilaId}},\n  \"sectorId\": {{sectorCampoId}},\n  \"cantidad\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Estado de la fila (organizador)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/fila/eventos/{{eventoFilaId}}/estado",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "fila",
+                "eventos",
+                "{{eventoFilaId}}",
+                "estado"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOrganizador}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "13 - Bitácora (log centralizado)",
+      "item": [
+        {
+          "name": "Traza de la compra por correlation id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/bitacora/trazas/{{correlationCompra}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "bitacora",
+                "trazas",
+                "{{correlationCompra}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const s = pm.response.json().map(r => r.servicio);",
+                  "pm.test(\"pasó por pagos y compras\", () => { pm.expect(s).to.include(\"ms-pagos\"); pm.expect(s).to.include(\"ms-compras\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Buscar por operación",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/bitacora?operacion=compra",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "bitacora"
+              ],
+              "query": [
+                {
+                  "key": "operacion",
+                  "value": "compra"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Error] Solo el admin ve la bitácora",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/bitacora",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "bitacora"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOrganizador}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "14 - Administración de eventos (cancelación)",
       "item": [
         {
           "name": "Suspender evento (admin)",
@@ -1766,14 +4279,6 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Usuario-Id",
-                "value": "1"
-              },
-              {
-                "key": "X-Rol",
-                "value": "ADMIN"
               }
             ],
             "url": {
@@ -1796,6 +4301,16 @@
                   "language": "json"
                 }
               }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
             }
           },
           "event": [
@@ -1819,10 +4334,6 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Usuario-Id",
-                "value": "500"
               }
             ],
             "url": {
@@ -1843,6 +4354,16 @@
                   "language": "json"
                 }
               }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente5}}",
+                  "type": "string"
+                }
+              ]
             }
           },
           "event": [
@@ -1861,16 +4382,7 @@
           "name": "Reanudar evento (admin)",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "X-Usuario-Id",
-                "value": "1"
-              },
-              {
-                "key": "X-Rol",
-                "value": "ADMIN"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{gateway}}/api/eventos/{{eventoId}}/reanudar",
               "host": [
@@ -1881,6 +4393,16 @@
                 "eventos",
                 "{{eventoId}}",
                 "reanudar"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
               ]
             }
           },
@@ -1904,14 +4426,6 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Usuario-Id",
-                "value": "10"
-              },
-              {
-                "key": "X-Rol",
-                "value": "ORGANIZADOR"
               }
             ],
             "url": {
@@ -1934,6 +4448,16 @@
                   "language": "json"
                 }
               }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOrganizador}}",
+                  "type": "string"
+                }
+              ]
             }
           },
           "event": [
@@ -1956,14 +4480,6 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Usuario-Id",
-                "value": "1"
-              },
-              {
-                "key": "X-Rol",
-                "value": "ADMIN"
               }
             ],
             "url": {
@@ -1986,6 +4502,16 @@
                   "language": "json"
                 }
               }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
             }
           },
           "event": [
@@ -2005,12 +4531,7 @@
           "name": "Las entradas quedaron CANCELADAS",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "X-Usuario-Id",
-                "value": "100"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{gateway}}/api/entradas",
               "host": [
@@ -2019,6 +4540,16 @@
               "path": [
                 "api",
                 "entradas"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
               ]
             }
           },
@@ -2097,6 +4628,82 @@
     {
       "key": "solicitudId",
       "value": ""
+    },
+    {
+      "key": "tokenAdmin",
+      "value": ""
+    },
+    {
+      "key": "tokenOrganizador",
+      "value": ""
+    },
+    {
+      "key": "tokenOrganizador2",
+      "value": ""
+    },
+    {
+      "key": "tokenCliente",
+      "value": ""
+    },
+    {
+      "key": "tokenCliente2",
+      "value": ""
+    },
+    {
+      "key": "tokenCliente3",
+      "value": ""
+    },
+    {
+      "key": "tokenCliente4",
+      "value": ""
+    },
+    {
+      "key": "tokenCliente5",
+      "value": ""
+    },
+    {
+      "key": "tokenAcceso",
+      "value": ""
+    },
+    {
+      "key": "emailCliente3",
+      "value": ""
+    },
+    {
+      "key": "emailCliente4",
+      "value": ""
+    },
+    {
+      "key": "emailCliente5",
+      "value": ""
+    },
+    {
+      "key": "organizadorId",
+      "value": ""
+    },
+    {
+      "key": "codigoQr",
+      "value": ""
+    },
+    {
+      "key": "correlationCompra",
+      "value": ""
+    },
+    {
+      "key": "fechaNueva",
+      "value": ""
+    },
+    {
+      "key": "eventoFilaId",
+      "value": ""
+    },
+    {
+      "key": "turnoFila",
+      "value": ""
+    },
+    {
+      "key": "intentosTurno",
+      "value": "0"
     }
   ]
 }

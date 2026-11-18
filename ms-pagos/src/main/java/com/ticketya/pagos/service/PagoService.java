@@ -9,13 +9,16 @@ import com.ticketya.pagos.model.Pago;
 import com.ticketya.pagos.model.Reintegro;
 import com.ticketya.pagos.repository.PagoRepository;
 import com.ticketya.pagos.repository.ReintegroRepository;
+import com.ticketya.pagos.trazabilidad.Bitacora;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Cobros y reintegros. Ambas operaciones son idempotentes por Idempotency-Key: si
@@ -31,13 +34,15 @@ public class PagoService {
     private final ReintegroRepository reintegroRepository;
     private final PasarelaMock pasarela;
     private final TransactionTemplate tx;
+    private final Bitacora bitacora;
 
     public PagoService(PagoRepository pagoRepository, ReintegroRepository reintegroRepository,
-                       PasarelaMock pasarela, TransactionTemplate tx) {
+                       PasarelaMock pasarela, TransactionTemplate tx, Bitacora bitacora) {
         this.pagoRepository = pagoRepository;
         this.reintegroRepository = reintegroRepository;
         this.pasarela = pasarela;
         this.tx = tx;
+        this.bitacora = bitacora;
     }
 
     public ResultadoOperacion<PagoResponse> pagar(PagoRequest req, String clave) {
@@ -49,7 +54,14 @@ public class PagoService {
             throw new IllegalArgumentException("Para pagar con tarjeta hay que indicar numeroTarjeta");
         }
 
-        PasarelaMock.Resultado resultado = pasarela.cobrar(req.monto(), req.medioPago());
+        PasarelaMock.Resultado resultado;
+        try {
+            resultado = pasarela.cobrar(req.monto(), req.medioPago());
+        } catch (PasarelaNoDisponibleException e) {
+            bitacora.registrar("pago.cobro", "PASARELA_NO_DISPONIBLE", req.usuarioId(),
+                    Map.of("compraId", req.compraId(), "monto", req.monto()));
+            throw e;
+        }
         String numero = req.medioPago().numeroTarjeta();
         Pago pago = new Pago(clave, req.compraId(), req.usuarioId(), req.monto(), req.medioPago().tipo(),
                 numero == null ? null : numero.substring(numero.length() - 4), req.medioPago().titular(),
@@ -63,6 +75,15 @@ public class PagoService {
             Pago guardado = tx.execute(s -> pagoRepository.saveAndFlush(pago));
             log.info("Pago {} de la compra {}: {} {}", guardado.getId(), req.compraId(), guardado.getEstado(),
                     guardado.getMotivoRechazo() == null ? "" : "(" + guardado.getMotivoRechazo() + ")");
+            Map<String, Object> detalle = new HashMap<>();
+            detalle.put("pagoId", guardado.getId());
+            detalle.put("compraId", req.compraId());
+            detalle.put("monto", req.monto());
+            detalle.put("medio", req.medioPago().tipo().name());
+            if (guardado.getMotivoRechazo() != null) {
+                detalle.put("motivo", guardado.getMotivoRechazo());
+            }
+            bitacora.registrar("pago.cobro", guardado.getEstado().name(), req.usuarioId(), detalle);
             return new ResultadoOperacion<>(PagoResponse.de(guardado), true);
         } catch (DataIntegrityViolationException e) {
             // dos pedidos con la misma clave llegaron al mismo tiempo: gana el primero que se guardo
@@ -112,6 +133,8 @@ public class PagoService {
                 pago.getReintegros().add(r);
                 reintegroRepository.saveAndFlush(r);
                 log.info("Reintegro de {} sobre el pago {} ({})", req.monto(), pagoId, req.motivo());
+                bitacora.registrar("pago.reintegro", "OK", pago.getUsuarioId(), Map.of("pagoId", pagoId,
+                        "compraId", pago.getCompraId(), "monto", req.monto(), "motivo", String.valueOf(req.motivo())));
                 return new ResultadoOperacion<>(ReintegroResponse.de(r), true);
             });
         } catch (DataIntegrityViolationException e) {

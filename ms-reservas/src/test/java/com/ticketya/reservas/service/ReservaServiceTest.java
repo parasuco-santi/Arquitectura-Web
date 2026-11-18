@@ -6,6 +6,11 @@ import com.ticketya.reservas.exception.LimiteExcedidoException;
 import com.ticketya.reservas.exception.OperacionInvalidaException;
 import com.ticketya.reservas.model.*;
 import com.ticketya.reservas.repository.*;
+import com.ticketya.reservas.trazabilidad.Bitacora;
+import com.ticketya.reservas.exception.AccesoDenegadoException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,6 +45,8 @@ class ReservaServiceTest {
     private LiberacionRepository liberacionRepository;
     @Mock
     private EventosClient eventosClient;
+    @Mock
+    private Bitacora bitacora;
 
     private ReservaService service;
     private EventoDisponibilidad evento;
@@ -50,7 +57,8 @@ class ReservaServiceTest {
     void setUp() {
         Clock clock = Clock.fixed(AHORA.atZone(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
         service = new ReservaService(reservaRepository, eventoRepository, sectorRepository, asientoRepository,
-                liberacionRepository, eventosClient, clock, 10);
+                liberacionRepository, eventosClient, clock, 10,
+                new ValidadorTurno("clave-de-test-de-la-fila-con-mas-de-32-bytes"), bitacora);
         evento = new EventoDisponibilidad(1L, "Recital", AHORA.plusDays(30), 4);
         campo = new SectorDisponibilidad(1L, 2L, "Campo", TipoSector.NO_NUMERADO, new BigDecimal("30000"), 100);
         platea = new SectorDisponibilidad(1L, 1L, "Platea", TipoSector.NUMERADO, new BigDecimal("50000"), 6);
@@ -167,5 +175,51 @@ class ReservaServiceTest {
         service.liberar(7L, EstadoReserva.LIBERADA);
 
         verify(sectorRepository, times(1)).reponer(1L, 2L, 2);
+    }
+
+    // ---- fila virtual (entrega 2) ----
+
+    private String turno(long eventoId, long usuarioId, Instant vence) {
+        return Jwts.builder().issuer("ms-fila").subject(String.valueOf(usuarioId)).claim("eventoId", eventoId)
+                .expiration(java.util.Date.from(vence))
+                .signWith(Keys.hmacShaKeyFor("clave-de-test-de-la-fila-con-mas-de-32-bytes".getBytes(StandardCharsets.UTF_8)))
+                .compact();
+    }
+
+    @Test
+    void enUnEventoDeAltaDemandaNoSePuedeReservarSinTurno() {
+        evento.setAltaDemanda(true);
+        when(eventoRepository.findById(1L)).thenReturn(Optional.of(evento));
+        assertThatThrownBy(() -> service.crear(100L, new ReservaRequest(1L, 2L, null, 1), null))
+                .isInstanceOf(AccesoDenegadoException.class).hasMessageContaining("fila virtual");
+    }
+
+    @Test
+    void enUnEventoDeAltaDemandaSeRechazaElTurnoDeOtroUsuarioOOtroEventoOVencido() {
+        evento.setAltaDemanda(true);
+        when(eventoRepository.findById(1L)).thenReturn(Optional.of(evento));
+        Instant futuro = Instant.now().plusSeconds(600);
+        assertThatThrownBy(() -> service.crear(100L, new ReservaRequest(1L, 2L, null, 1), turno(1L, 999L, futuro)))
+                .isInstanceOf(AccesoDenegadoException.class);
+        assertThatThrownBy(() -> service.crear(100L, new ReservaRequest(1L, 2L, null, 1), turno(2L, 100L, futuro)))
+                .isInstanceOf(AccesoDenegadoException.class);
+        assertThatThrownBy(() -> service.crear(100L, new ReservaRequest(1L, 2L, null, 1),
+                turno(1L, 100L, Instant.now().minusSeconds(5))))
+                .isInstanceOf(AccesoDenegadoException.class);
+        assertThatThrownBy(() -> service.crear(100L, new ReservaRequest(1L, 2L, null, 1), "basura"))
+                .isInstanceOf(AccesoDenegadoException.class);
+    }
+
+    @Test
+    void enUnEventoDeAltaDemandaConTurnoValidoSeReserva() {
+        evento.setAltaDemanda(true);
+        when(eventoRepository.findById(1L)).thenReturn(Optional.of(evento));
+        when(sectorRepository.findByEventoIdAndSectorId(1L, 2L)).thenReturn(Optional.of(campo));
+        when(sectorRepository.descontar(1L, 2L, 1)).thenReturn(1);
+        when(reservaRepository.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        var resp = service.crear(100L, new ReservaRequest(1L, 2L, null, 1), turno(1L, 100L, Instant.now().plusSeconds(600)));
+
+        assertThat(resp.estado()).isEqualTo(EstadoReserva.PENDIENTE);
     }
 }

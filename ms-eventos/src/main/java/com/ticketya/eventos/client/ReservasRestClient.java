@@ -31,6 +31,19 @@ public class ReservasRestClient implements ReservasClient {
     }
 
     @Override
+    public void reprogramar(Long eventoId, java.time.LocalDateTime nuevaFecha) {
+        try {
+            restClient.patch()
+                    .uri("/disponibilidad/eventos/{id}/fecha", eventoId)
+                    .body(Map.of("fechaEvento", nuevaFecha.toString()))
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientException e) {
+            throw new ServicioExternoException("No se pudo reprogramar el evento en ms-reservas", e);
+        }
+    }
+
+    @Override
     public void cambiarHabilitacion(Long eventoId, boolean habilitado, String motivo) {
         try {
             restClient.patch()

@@ -4,3 +4,4 @@ CREATE DATABASE eventos_db;
 CREATE DATABASE reservas_db;
 CREATE DATABASE compras_db;
 CREATE DATABASE pagos_db;
+CREATE DATABASE usuarios_db;

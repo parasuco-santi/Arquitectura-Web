@@ -58,8 +58,10 @@ public class DisponibilidadService {
             log.info("La disponibilidad del evento {} ya estaba inicializada", req.eventoId());
             return false;
         }
-        eventoRepository.save(new EventoDisponibilidad(req.eventoId(), req.nombreEvento(), req.fechaEvento(),
-                req.limitePorCliente()));
+        EventoDisponibilidad evento = new EventoDisponibilidad(req.eventoId(), req.nombreEvento(), req.fechaEvento(),
+                req.limitePorCliente());
+        evento.setAltaDemanda(Boolean.TRUE.equals(req.altaDemanda()));
+        eventoRepository.save(evento);
         List<AsientoDisponibilidad> asientos = new ArrayList<>();
         for (DisponibilidadInicialRequest.SectorInicial s : req.sectores()) {
             if (s.tipo() == TipoSector.NUMERADO && (s.asientos() == null || s.asientos().isEmpty())) {
@@ -96,6 +98,14 @@ public class DisponibilidadService {
         }
     }
 
+    /** Reprogramacion del evento (la invoca ms-eventos antes de confirmar el cambio de fecha). */
+    @Transactional
+    public void reprogramar(Long eventoId, java.time.LocalDateTime nuevaFecha) {
+        EventoDisponibilidad evento = buscarEvento(eventoId);
+        evento.setFechaEvento(nuevaFecha);
+        log.info("Evento {} reprogramado para {}", eventoId, nuevaFecha);
+    }
+
     @Transactional(readOnly = true)
     public DisponibilidadResponse consultar(Long eventoId) {
         EventoDisponibilidad evento = buscarEvento(eventoId);
@@ -105,7 +115,7 @@ public class DisponibilidadService {
                         s.getPrecio(), s.getCapacidad(), s.getDisponibles()))
                 .toList();
         return new DisponibilidadResponse(eventoId, evento.getNombreEvento(), evento.getFechaEvento(),
-                evento.isHabilitado(), sectores);
+                evento.isHabilitado(), evento.isAltaDemanda(), sectores);
     }
 
     @Transactional(readOnly = true)

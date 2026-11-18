@@ -1,5 +1,6 @@
 package com.ticketya.compras.client;
 
+import io.github.resilience4j.retry.annotation.Retry;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -7,6 +8,10 @@ import org.springframework.web.client.RestClient;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Cliente de ms-reservas. Todas las operaciones son idempotentes (por transicion de estado condicional
+ * o por Idempotency-Key), asi que se reintentan ante fallas de red o 5xx (retry "reservas").
+ */
 @Component
 public class ReservasRestClient implements ReservasClient {
 
@@ -18,6 +23,7 @@ public class ReservasRestClient implements ReservasClient {
     }
 
     @Override
+    @Retry(name = "reservas")
     public ReservaDto obtener(Long reservaId) {
         return ErroresHttp.llamar(SERVICIO, () -> restClient.get()
                 .uri("/reservas/{id}", reservaId)
@@ -26,6 +32,7 @@ public class ReservasRestClient implements ReservasClient {
     }
 
     @Override
+    @Retry(name = "reservas")
     public ReservaDto confirmar(Long reservaId) {
         return ErroresHttp.llamar(SERVICIO, () -> restClient.post()
                 .uri("/reservas/{id}/confirmar", reservaId)
@@ -34,6 +41,7 @@ public class ReservasRestClient implements ReservasClient {
     }
 
     @Override
+    @Retry(name = "reservas")
     public void liberar(Long reservaId) {
         ErroresHttp.llamar(SERVICIO, () -> restClient.post()
                 .uri("/reservas/{id}/liberar", reservaId)
@@ -42,6 +50,7 @@ public class ReservasRestClient implements ReservasClient {
     }
 
     @Override
+    @Retry(name = "reservas")
     public void liberarVendido(Long eventoId, Long reservaId, Long sectorId, Long asientoId, String idempotencyKey) {
         Map<String, Object> body = new HashMap<>();
         body.put("reservaId", reservaId);
@@ -54,5 +63,14 @@ public class ReservasRestClient implements ReservasClient {
                 .body(body)
                 .retrieve()
                 .toBodilessEntity());
+    }
+
+    @Override
+    @Retry(name = "reservas")
+    public DisponibilidadDto disponibilidad(Long eventoId) {
+        return ErroresHttp.llamar(SERVICIO, () -> restClient.get()
+                .uri("/disponibilidad/eventos/{id}", eventoId)
+                .retrieve()
+                .body(DisponibilidadDto.class));
     }
 }

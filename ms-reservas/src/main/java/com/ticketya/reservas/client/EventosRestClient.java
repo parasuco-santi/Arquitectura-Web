@@ -28,7 +28,8 @@ public class EventosRestClient implements EventosClient {
         HttpClient httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofMillis(timeoutMs)).build();
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClient);
         factory.setReadTimeout(Duration.ofMillis(timeoutMs));
-        this.restClient = RestClient.builder().baseUrl(url).requestFactory(factory).build();
+        this.restClient = RestClient.builder().baseUrl(url).requestFactory(factory)
+                .requestInterceptor(new com.ticketya.reservas.trazabilidad.CorrelacionInterceptor()).build();
     }
 
     @Override

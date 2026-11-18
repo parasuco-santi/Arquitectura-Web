@@ -1,4 +1,12 @@
 spring:
+  application:
+    name: ms-eventos
+  cache:
+    type: simple
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: false
   datasource:
     url: jdbc:h2:mem:eventos_test;DB_CLOSE_DELAY=-1
     username: sa
@@ -13,3 +21,8 @@ servicios:
     url: http://localhost:18082
   compras:
     url: http://localhost:18083
+
+outbox:
+  publicar: false
+bitacora:
+  enviar: false

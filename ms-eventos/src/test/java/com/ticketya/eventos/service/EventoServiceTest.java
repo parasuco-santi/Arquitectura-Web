@@ -43,6 +43,10 @@ class EventoServiceTest {
     @Mock
     private ReservasClient reservasClient;
     @Mock
+    private com.ticketya.eventos.mensajeria.Outbox outbox;
+    @Mock
+    private com.ticketya.eventos.trazabilidad.Bitacora bitacora;
+    @Mock
     private ComprasClient comprasClient;
 
     @InjectMocks
@@ -234,5 +238,86 @@ class EventoServiceTest {
         eventoService.marcarAgotado(5L);
 
         assertThat(evento.getEstado()).isEqualTo(EstadoEvento.CANCELADO);
+    }
+
+    // ---- entrega 2: mensajes de dominio y reprogramacion ----
+
+    private Evento eventoPublicado() {
+        Evento evento = eventoEnBorrador();
+        evento.definirPrecio(platea, new BigDecimal("50000"));
+        evento.definirPrecio(campo, new BigDecimal("30000"));
+        evento.cambiarEstado(EstadoEvento.PUBLICADO);
+        return evento;
+    }
+
+    @Test
+    void publicarDejaElMensajeEventoPublicadoEnElOutbox() {
+        Evento evento = eventoEnBorrador();
+        evento.setAltaDemanda(true);
+        evento.definirPrecio(platea, new BigDecimal("50000"));
+        evento.definirPrecio(campo, new BigDecimal("30000"));
+        when(eventoRepository.findById(5L)).thenReturn(Optional.of(evento));
+
+        eventoService.publicar(5L, ORGANIZADOR, Rol.ORGANIZADOR);
+
+        ArgumentCaptor<Object> mensaje = ArgumentCaptor.forClass(Object.class);
+        verify(outbox).registrar(eq(com.ticketya.eventos.mensajeria.Mensajes.PUBLICADO), mensaje.capture());
+        var publicado = (com.ticketya.eventos.mensajeria.Mensajes.EventoPublicado) mensaje.getValue();
+        assertThat(publicado.altaDemanda()).isTrue();
+        assertThat(publicado.ciudad()).isEqualTo("Tandil");
+        assertThat(publicado.participantes()).containsExactly("Banda X");
+        ArgumentCaptor<DisponibilidadInicialRequest> captor = ArgumentCaptor.forClass(DisponibilidadInicialRequest.class);
+        verify(reservasClient).inicializarDisponibilidad(captor.capture());
+        assertThat(captor.getValue().altaDemanda()).isTrue();
+    }
+
+    @Test
+    void reprogramarActualizaReservasYAvisaPorMensaje() {
+        Evento evento = eventoPublicado();
+        when(eventoRepository.findById(5L)).thenReturn(Optional.of(evento));
+        LocalDateTime nueva = evento.getFechaHora().plusDays(7);
+
+        EventoResponse resp = eventoService.reprogramar(5L, nueva, "lluvia", ORGANIZADOR, Rol.ORGANIZADOR);
+
+        assertThat(resp.fechaHora()).isEqualTo(nueva);
+        verify(reservasClient).reprogramar(5L, nueva);
+        verify(outbox).registrar(eq(com.ticketya.eventos.mensajeria.Mensajes.REPROGRAMADO), any());
+    }
+
+    @Test
+    void noSeReprogramaUnBorradorNiLoHaceOtroOrganizador() {
+        when(eventoRepository.findById(5L)).thenReturn(Optional.of(eventoEnBorrador()));
+        assertThatThrownBy(() -> eventoService.reprogramar(5L, LocalDateTime.now().plusDays(40), null, ORGANIZADOR,
+                Rol.ORGANIZADOR)).isInstanceOf(OperacionInvalidaException.class);
+
+        when(eventoRepository.findById(5L)).thenReturn(Optional.of(eventoPublicado()));
+        assertThatThrownBy(() -> eventoService.reprogramar(5L, LocalDateTime.now().plusDays(40), null, 77L,
+                Rol.ORGANIZADOR)).isInstanceOf(AccesoDenegadoException.class);
+        verify(reservasClient, never()).reprogramar(any(), any());
+    }
+
+    @Test
+    void siReservasNoRespondeNoSeReprograma() {
+        Evento evento = eventoPublicado();
+        LocalDateTime original = evento.getFechaHora();
+        when(eventoRepository.findById(5L)).thenReturn(Optional.of(evento));
+        doThrow(new ServicioExternoException("caido", null)).when(reservasClient).reprogramar(any(), any());
+
+        assertThatThrownBy(() -> eventoService.reprogramar(5L, original.plusDays(3), null, ORGANIZADOR, Rol.ADMIN))
+                .isInstanceOf(ServicioExternoException.class);
+        assertThat(evento.getFechaHora()).isEqualTo(original);
+        verifyNoInteractions(outbox);
+    }
+
+    @Test
+    void cancelarUnEventoPublicadoAvisaPorMensajeYRegistraEnLaBitacora() {
+        Evento evento = eventoPublicado();
+        when(eventoRepository.findById(5L)).thenReturn(Optional.of(evento));
+
+        eventoService.cancelar(5L, "lluvia", Rol.ADMIN);
+
+        verify(comprasClient).notificarCancelacion(5L, "lluvia");
+        verify(outbox).registrar(eq(com.ticketya.eventos.mensajeria.Mensajes.CANCELADO), any());
+        verify(bitacora).registrar(eq("evento.cancelado"), eq("OK"), any(), any());
     }
 }

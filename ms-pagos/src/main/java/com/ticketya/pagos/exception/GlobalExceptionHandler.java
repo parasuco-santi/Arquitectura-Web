@@ -1,5 +1,6 @@
 package com.ticketya.pagos.exception;
 
+import com.ticketya.pagos.service.PasarelaNoDisponibleException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +30,11 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> claveReutilizada(ClaveIdempotenciaReutilizadaException ex,
                                                           HttpServletRequest req) {
         return armar(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), req, null);
+    }
+
+    @ExceptionHandler(PasarelaNoDisponibleException.class)
+    public ResponseEntity<ErrorResponse> pasarelaCaida(PasarelaNoDisponibleException ex, HttpServletRequest req) {
+        return armar(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), req, null);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

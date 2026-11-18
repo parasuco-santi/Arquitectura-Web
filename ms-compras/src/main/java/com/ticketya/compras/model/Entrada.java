@@ -59,6 +59,13 @@ public class Entrada {
     @Column(name = "emitida_en", nullable = false)
     private LocalDateTime emitidaEn = LocalDateTime.now();
 
+    /** Momento en que se escaneo el QR en el ingreso (null si no se uso). */
+    @Column(name = "utilizada_en")
+    private LocalDateTime utilizadaEn;
+
+    @Column(name = "puerta_ingreso", length = 60)
+    private String puertaIngreso;
+
     protected Entrada() {
     }
 
@@ -100,4 +107,6 @@ public class Entrada {
     public EstadoEntrada getEstado() { return estado; }
     public String getLugarActivo() { return lugarActivo; }
     public LocalDateTime getEmitidaEn() { return emitidaEn; }
+    public LocalDateTime getUtilizadaEn() { return utilizadaEn; }
+    public String getPuertaIngreso() { return puertaIngreso; }
 }

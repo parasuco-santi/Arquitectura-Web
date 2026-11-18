@@ -18,7 +18,7 @@ public record EventoRequest(
         @Schema(example = "[\"Los Piojos\"]") List<String> participantes,
         @NotNull @Future @Schema(example = "2026-12-15T21:00:00") LocalDateTime fechaHora,
         @NotNull @Schema(example = "1") Long lugarId,
-        @Schema(example = "false", description = "Si es true, en la entrega 2 se usa fila virtual") Boolean altaDemanda,
+        @Schema(example = "false", description = "Si es true, la venta se hace con fila virtual") Boolean altaDemanda,
         @Min(1) @Max(20) @Schema(example = "4", description = "Maximo de entradas por cliente para el evento (default 6)")
         Integer limiteEntradasPorCliente) {
 }

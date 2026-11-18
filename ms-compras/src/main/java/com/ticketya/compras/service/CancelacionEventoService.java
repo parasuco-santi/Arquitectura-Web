@@ -22,7 +22,8 @@ import java.util.Set;
  * queda VALIDA y se reprocesa cuando ms-eventos vuelva a llamar (el admin puede
  * reintentar la cancelacion); las claves de idempotencia evitan reintegrar dos veces.
  *
- * Las notificaciones a los compradores son de la entrega 2: por ahora se dejan en el log.
+ * La notificacion a los compradores la hace ms-notificaciones al recibir el mensaje evento.cancelado
+ * (asincronico): consulta a este servicio la lista de compradores y les manda el aviso.
  */
 @Service
 public class CancelacionEventoService {
@@ -34,10 +35,13 @@ public class CancelacionEventoService {
     private final PagosClient pagosClient;
     private final TransactionTemplate tx;
     private final Clock clock;
+    private final com.ticketya.compras.trazabilidad.Bitacora bitacora;
 
     public CancelacionEventoService(EntradaRepository entradaRepository,
                                     SolicitudDevolucionRepository solicitudRepository, PagosClient pagosClient,
-                                    TransactionTemplate tx, Clock clock) {
+                                    TransactionTemplate tx, Clock clock,
+                                    com.ticketya.compras.trazabilidad.Bitacora bitacora) {
+        this.bitacora = bitacora;
         this.entradaRepository = entradaRepository;
         this.solicitudRepository = solicitudRepository;
         this.pagosClient = pagosClient;
@@ -71,9 +75,10 @@ public class CancelacionEventoService {
         tx.executeWithoutResult(s -> solicitudRepository.findByEntradaEventoIdAndEstado(eventoId, EstadoSolicitud.PENDIENTE)
                 .forEach(sol -> sol.rechazar(null, "Evento cancelado: el reintegro se hizo automáticamente",
                         LocalDateTime.now(clock))));
-        compradores.forEach(u -> log.info("[NOTIFICACION pendiente E2] Usuario {}: el evento {} fue cancelado ({}). "
-                + "Se reintegró el valor de tus entradas.", u, eventoId, motivo));
         log.info("Evento {} cancelado: {} entradas canceladas, {} reintegros fallidos", eventoId, ok, fallidos);
+        bitacora.registrar("cancelacion.reintegros", fallidos == 0 ? "OK" : "PARCIAL", null,
+                java.util.Map.of("eventoId", eventoId, "entradasCanceladas", ok, "reintegrosFallidos", fallidos,
+                        "compradores", compradores.size()));
         return new CancelacionEventoResponse(eventoId, ok, ok, fallidos, compradores.size());
     }
 }

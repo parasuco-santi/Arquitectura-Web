@@ -10,12 +10,18 @@ info:
 
     Una reserva queda PENDIENTE durante 10 minutos (configurable); si no se confirma
     el pago en ese tiempo pasa a VENCIDA y los lugares se liberan.
-  version: 1.0.0
+
+    **Entrega 2:** reservar es solo para el rol CLIENTE (JWT). En los eventos de
+    **alta demanda** hay que mandar además el turno de la fila virtual en el header
+    `X-Turno-Fila` (lo entrega ms-fila); sin turno válido se responde 403.
+  version: 2.0.0
 servers:
 - url: http://localhost:8080/api
   description: A través del API Gateway
 - url: http://localhost:8082
   description: Directo al microservicio
+security:
+- bearerAuth: []
 tags:
 - name: Reservas
   description: Reserva temporal de lugares mientras el cliente paga
@@ -27,15 +33,9 @@ paths:
       tags:
       - Reservas
       summary: Mis reservas
-      description: "Reservas del usuario del header, opcionalmente por estado."
+      description: Reservas del usuario del header, opcionalmente por estado.
       operationId: mias
       parameters:
-      - name: X-Usuario-Id
-        in: header
-        required: true
-        schema:
-          type: integer
-          format: int64
       - name: estado
         in: query
         required: false
@@ -47,72 +47,76 @@ paths:
           - LIBERADA
           - VENCIDA
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/ReservaResponse"
+                  $ref: '#/components/schemas/ReservaResponse'
     post:
       tags:
       - Reservas
       summary: Reservar lugares
-      description: "Bloquea los asientos elegidos (sector numerado) o una cantidad\
-        \ de lugares (sector no numerado) durante 10 minutos. Es todo o nada: si alguno\
-        \ de los asientos ya no está libre no se reserva ninguno."
+      description: 'Bloquea los asientos elegidos (sector numerado) o una cantidad de lugares (sector no numerado) durante
+        10 minutos. Es todo o nada: si alguno de los asientos ya no está libre no se reserva ninguno.'
       operationId: crear
       parameters:
-      - name: X-Usuario-Id
+      - name: X-Turno-Fila
         in: header
-        required: true
+        description: Turno de la fila virtual (solo eventos de alta demanda)
+        required: false
         schema:
-          type: integer
-          format: int64
-        example: 100
+          type: string
       requestBody:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ReservaRequest"
+              $ref: '#/components/schemas/ReservaRequest'
         required: true
       responses:
-        "201":
+        '201':
           description: Reserva creada en estado PENDIENTE
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ReservaResponse"
-        "400":
-          description: "Pedido inválido (ej: asientos en un sector no numerado)"
+                $ref: '#/components/schemas/ReservaResponse'
+        '404':
+          description: Evento, sector o asiento inexistente
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "409":
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: 'Pedido inválido (ej: asientos en un sector no numerado)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
           description: Lugar no disponible o evento sin venta habilitada
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "404":
-          description: "Evento, sector o asiento inexistente"
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Evento de alta demanda sin turno válido de la fila virtual
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "422":
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
           description: Supera el límite de entradas por cliente
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
   /reservas/{id}/liberar:
     post:
       tags:
       - Reservas
-      summary: "[Interno] Liberar reserva (pago rechazado)"
+      summary: '[Interno] Liberar reserva (pago rechazado)'
       description: Lo invoca ms-compras. Devuelve los lugares al inventario. Idempotente.
       operationId: liberar
       parameters:
@@ -123,17 +127,17 @@ paths:
           type: integer
           format: int64
       responses:
-        "409":
+        '409':
           description: La reserva ya fue confirmada
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
   /reservas/{id}/confirmar:
     post:
       tags:
       - Reservas
-      summary: "[Interno] Confirmar reserva (pago aprobado)"
+      summary: '[Interno] Confirmar reserva (pago aprobado)'
       description: Lo invoca ms-compras. Pasa los lugares a VENDIDO. Idempotente.
       operationId: confirmar
       parameters:
@@ -144,24 +148,24 @@ paths:
           type: integer
           format: int64
       responses:
-        "409":
+        '409':
           description: La reserva venció o fue liberada
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "200":
+                $ref: '#/components/schemas/ErrorResponse'
+        '200':
           description: Reserva confirmada
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ReservaResponse"
+                $ref: '#/components/schemas/ReservaResponse'
   /disponibilidad/eventos/{eventoId}:
     get:
       tags:
       - Disponibilidad
       summary: Disponibilidad por sector de un evento
-      description: "Lugares libres por sector, calculados en tiempo real (no se cachea)."
+      description: Lugares libres por sector, calculados en tiempo real (no se cachea).
       operationId: consultar
       parameters:
       - name: eventoId
@@ -171,24 +175,23 @@ paths:
           type: integer
           format: int64
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DisponibilidadResponse"
-        "404":
+                $ref: '#/components/schemas/DisponibilidadResponse'
+        '404':
           description: El evento no está publicado
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
     post:
       tags:
       - Disponibilidad
-      summary: "[Interno] Inicializar inventario de un evento"
-      description: "Lo invoca ms-eventos al publicar. Idempotente: 201 si se creó\
-        , 200 si ya existía."
+      summary: '[Interno] Inicializar inventario de un evento'
+      description: 'Lo invoca ms-eventos al publicar. Idempotente: 201 si se creó, 200 si ya existía.'
       operationId: inicializar
       parameters:
       - name: eventoId
@@ -201,21 +204,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/DisponibilidadInicialRequest"
+              $ref: '#/components/schemas/DisponibilidadInicialRequest'
         required: true
       responses:
-        "200":
+        '200':
           description: El inventario ya existía
-        "201":
+        '201':
           description: Inventario creado
   /disponibilidad/eventos/{eventoId}/liberaciones:
     post:
       tags:
       - Disponibilidad
-      summary: "[Interno] Liberar un lugar vendido (devolución)"
-      description: "Lo invoca ms-compras cuando un administrador aprueba una devolució\
-        n. Requiere Idempotency-Key: un reintento con la misma clave no libera el\
-        \ lugar dos veces."
+      summary: '[Interno] Liberar un lugar vendido (devolución)'
+      description: 'Lo invoca ms-compras cuando un administrador aprueba una devolución. Requiere Idempotency-Key: un reintento
+        con la misma clave no libera el lugar dos veces.'
       operationId: liberar_1
       parameters:
       - name: eventoId
@@ -233,24 +235,46 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/LiberacionRequest"
+              $ref: '#/components/schemas/LiberacionRequest'
         required: true
       responses:
-        "409":
+        '409':
           description: La reserva no corresponde a una venta del evento
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "204":
+                $ref: '#/components/schemas/ErrorResponse'
+        '204':
           description: Lugar liberado (o ya estaba liberado con esa clave)
+  /disponibilidad/eventos/{eventoId}/fecha:
+    patch:
+      tags:
+      - Disponibilidad
+      summary: '[Interno] Reprogramar el evento'
+      description: Lo invoca ms-eventos cuando el organizador cambia la fecha de un evento publicado.
+      operationId: reprogramar
+      parameters:
+      - name: eventoId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReprogramacionRequest'
+        required: true
+      responses:
+        '204':
+          description: Actualizado
   /disponibilidad/eventos/{eventoId}/estado:
     patch:
       tags:
       - Disponibilidad
-      summary: "[Interno] Habilitar o deshabilitar la venta"
-      description: "Lo invoca ms-eventos al suspender, reanudar o cancelar. Al deshabilitar\
-        \ se liberan las reservas pendientes."
+      summary: '[Interno] Habilitar o deshabilitar la venta'
+      description: Lo invoca ms-eventos al suspender, reanudar o cancelar. Al deshabilitar se liberan las reservas pendientes.
       operationId: cambiarEstado
       parameters:
       - name: eventoId
@@ -263,18 +287,17 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/HabilitacionRequest"
+              $ref: '#/components/schemas/HabilitacionRequest'
         required: true
       responses:
-        "204":
+        '204':
           description: Actualizado
   /reservas/{id}:
     get:
       tags:
       - Reservas
       summary: Obtener una reserva
-      description: Si se envía X-Usuario-Id se valida que la reserva sea del usuario.
-        Los servicios internos lo omiten.
+      description: Si se envía X-Usuario-Id se valida que la reserva sea del usuario. Los servicios internos lo omiten.
       operationId: obtener
       parameters:
       - name: id
@@ -283,19 +306,13 @@ paths:
         schema:
           type: integer
           format: int64
-      - name: X-Usuario-Id
-        in: header
-        required: false
-        schema:
-          type: integer
-          format: int64
       responses:
-        "404":
+        '404':
           description: No existe
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
     delete:
       tags:
       - Reservas
@@ -309,32 +326,25 @@ paths:
         schema:
           type: integer
           format: int64
-      - name: X-Usuario-Id
-        in: header
-        required: true
-        schema:
-          type: integer
-          format: int64
       responses:
-        "409":
+        '409':
           description: La reserva ya fue confirmada
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "403":
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
           description: La reserva es de otro usuario
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
   /disponibilidad/eventos/{eventoId}/sectores/{sectorId}/asientos:
     get:
       tags:
       - Disponibilidad
       summary: Mapa de asientos de un sector numerado
-      description: "Estado de cada asiento para el evento: DISPONIBLE, RESERVADO o\
-        \ VENDIDO."
+      description: 'Estado de cada asiento para el evento: DISPONIBLE, RESERVADO o VENDIDO.'
       operationId: asientos
       parameters:
       - name: eventoId
@@ -350,18 +360,18 @@ paths:
           type: integer
           format: int64
       responses:
-        "409":
-          description: El sector no es numerado
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "404":
+        '404':
           description: No existe el sector para el evento
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: El sector no es numerado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
     ReservaRequest:
@@ -391,8 +401,7 @@ components:
           type: integer
           format: int32
           example: 2
-      description: Para sectores NUMERADOS se envian los asientoIds; para NO_NUMERADOS
-        la cantidad.
+      description: Para sectores NUMERADOS se envian los asientoIds; para NO_NUMERADOS la cantidad.
     ErrorResponse:
       type: object
       properties:
@@ -497,7 +506,7 @@ components:
         items:
           type: array
           items:
-            $ref: "#/components/schemas/Item"
+            $ref: '#/components/schemas/Item'
     AsientoInicial:
       required:
       - asientoId
@@ -536,7 +545,9 @@ components:
         sectores:
           type: array
           items:
-            $ref: "#/components/schemas/SectorInicial"
+            $ref: '#/components/schemas/SectorInicial'
+        altaDemanda:
+          type: boolean
     SectorInicial:
       required:
       - capacidad
@@ -564,7 +575,7 @@ components:
         asientos:
           type: array
           items:
-            $ref: "#/components/schemas/AsientoInicial"
+            $ref: '#/components/schemas/AsientoInicial'
     LiberacionRequest:
       required:
       - cantidad
@@ -591,6 +602,14 @@ components:
           format: int32
           example: 1
       description: Libera un lugar ya vendido (por una devolucion aprobada)
+    ReprogramacionRequest:
+      required:
+      - fechaEvento
+      type: object
+      properties:
+        fechaEvento:
+          type: string
+          format: date-time
     HabilitacionRequest:
       required:
       - habilitado
@@ -616,10 +635,14 @@ components:
         habilitado:
           type: boolean
           example: true
+        altaDemanda:
+          type: boolean
+          description: Si es true, para reservar hace falta el turno de la fila virtual
+          example: false
         sectores:
           type: array
           items:
-            $ref: "#/components/schemas/SectorDisponible"
+            $ref: '#/components/schemas/SectorDisponible'
     SectorDisponible:
       type: object
       properties:
@@ -647,3 +670,8 @@ components:
           type: integer
           format: int32
           example: 137
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

@@ -9,6 +9,9 @@ import com.ticketya.eventos.model.Lugar;
 import com.ticketya.eventos.model.Sector;
 import com.ticketya.eventos.model.TipoSector;
 import com.ticketya.eventos.repository.LugarRepository;
+import com.ticketya.eventos.config.CacheConfig;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +27,7 @@ public class LugarService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = CacheConfig.LUGARES_POR_CIUDAD, allEntries = true)
     public LugarResponse crear(LugarRequest request) {
         Lugar lugar = new Lugar(request.nombre(), request.direccion(), request.ciudad(),
                 request.latitud(), request.longitud());
@@ -48,6 +52,7 @@ public class LugarService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CacheConfig.LUGARES_POR_CIUDAD, key = "#ciudad == null ? '' : #ciudad.toLowerCase()")
     public List<LugarResponse> listar(String ciudad) {
         List<Lugar> lugares = ciudad == null || ciudad.isBlank()
                 ? lugarRepository.findAll()
@@ -56,6 +61,7 @@ public class LugarService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CacheConfig.LUGARES, key = "#id")
     public LugarResponse obtener(Long id) {
         return LugarResponse.de(buscar(id));
     }

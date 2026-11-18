@@ -42,6 +42,8 @@ public class BusquedaService {
     }
 
     @Transactional(readOnly = true)
+    @org.springframework.cache.annotation.Cacheable(cacheNames = com.ticketya.eventos.config.CacheConfig.BUSQUEDAS,
+            key = "#f.toString()")
     public PaginaResponse<EventoResponse> buscar(FiltroBusqueda f) {
         int tamanio = Math.min(Math.max(f.tamanio(), 1), TAMANIO_MAXIMO);
         int pagina = Math.max(f.pagina(), 0);

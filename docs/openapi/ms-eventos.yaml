@@ -6,19 +6,26 @@ info:
     en borrador, definición de precios por sector, publicación, suspensión/cancelación
     y búsqueda por múltiples criterios.
 
-    **Entrega 1:** no hay autenticación. El usuario se identifica con los encabezados
-    `X-Usuario-Id` y `X-Rol` (CLIENTE, ORGANIZADOR, ADMIN, ACCESO).
-  version: 1.0.0
+    **Entrega 2:** autenticación con JWT (`Authorization: Bearer ...`, se obtiene en
+    `POST /api/auth/login`). Las consultas (GET) son públicas; crear y modificar es para
+    ORGANIZADOR (dueño del evento) o ADMIN, y suspender / cancelar solo ADMIN. El gateway
+    valida el token y le pasa al servicio la identidad en `X-Usuario-Id` / `X-Rol`.
+
+    El detalle, las búsquedas y los lugares se cachean en Redis (ver docs/06). Al
+    publicar, cancelar o reprogramar se emite un mensaje de dominio a RabbitMQ (outbox).
+  version: 2.0.0
 servers:
 - url: http://localhost:8080/api
   description: A través del API Gateway
 - url: http://localhost:8081
   description: Directo al microservicio
+security:
+- bearerAuth: []
 tags:
 - name: Eventos
-  description: "Alta, publicación, cancelación y búsqueda de eventos"
+  description: Alta, publicación, cancelación y búsqueda de eventos
 - name: Lugares
-  description: "Estadios, teatros y salas con sus sectores"
+  description: Estadios, teatros y salas con sus sectores
 - name: Interno
   description: Endpoints entre microservicios (no expuestos por el gateway)
 paths:
@@ -36,12 +43,12 @@ paths:
           type: integer
           format: int64
       responses:
-        "404":
+        '404':
           description: No existe el evento
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
     put:
       tags:
       - Eventos
@@ -54,43 +61,31 @@ paths:
         schema:
           type: integer
           format: int64
-      - name: X-Usuario-Id
-        in: header
-        required: true
-        schema:
-          type: integer
-          format: int64
-      - name: X-Rol
-        in: header
-        required: false
-        schema:
-          type: string
       requestBody:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/EventoRequest"
+              $ref: '#/components/schemas/EventoRequest'
         required: true
       responses:
-        "403":
-          description: No es el organizador del evento
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "409":
+        '409':
           description: El evento no está en borrador
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: No es el organizador del evento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /eventos/{id}/precios:
     put:
       tags:
       - Eventos
       summary: Definir el precio de cada sector
-      description: Se puede llamar varias veces mientras el evento está en borrador;
-        los precios se pisan por sector.
+      description: Se puede llamar varias veces mientras el evento está en borrador; los precios se pisan por sector.
       operationId: definirPrecios
       parameters:
       - name: id
@@ -99,30 +94,19 @@ paths:
         schema:
           type: integer
           format: int64
-      - name: X-Usuario-Id
-        in: header
-        required: true
-        schema:
-          type: integer
-          format: int64
-      - name: X-Rol
-        in: header
-        required: false
-        schema:
-          type: string
       requestBody:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/PreciosRequest"
+              $ref: '#/components/schemas/PreciosRequest'
         required: true
       responses:
-        "409":
+        '409':
           description: Sector ajeno al lugar o evento no está en borrador
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
   /lugares:
     get:
       tags:
@@ -138,60 +122,51 @@ paths:
           type: string
         example: Tandil
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/LugarResponse"
+                  $ref: '#/components/schemas/LugarResponse'
     post:
       tags:
       - Lugares
       summary: Crear un lugar
-      description: "Da de alta un lugar con sus sectores. Para los sectores numerados\
-        \ se generan los asientos automáticamente (filas A, B, C... y números 1..N).\
-        \ Requiere rol ORGANIZADOR o ADMIN."
+      description: Da de alta un lugar con sus sectores. Para los sectores numerados se generan los asientos automáticamente
+        (filas A, B, C... y números 1..N). Requiere rol ORGANIZADOR o ADMIN.
       operationId: crear
-      parameters:
-      - name: X-Rol
-        in: header
-        required: false
-        schema:
-          type: string
-        example: ORGANIZADOR
       requestBody:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/LugarRequest"
+              $ref: '#/components/schemas/LugarRequest'
         required: true
       responses:
-        "403":
-          description: El rol no puede crear lugares
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "201":
+        '201':
           description: Lugar creado
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/LugarResponse"
-        "400":
+                $ref: '#/components/schemas/LugarResponse'
+        '400':
           description: Datos inválidos
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: El rol no puede crear lugares
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /internal/eventos/{id}/disponible:
     post:
       tags:
       - Interno
-      summary: Volver un evento AGOTADO a PUBLICADO cuando se liberan lugares (lo
-        invoca ms-reservas)
+      summary: Volver un evento AGOTADO a PUBLICADO cuando se liberan lugares (lo invoca ms-reservas)
       operationId: disponible
       parameters:
       - name: id
@@ -201,7 +176,7 @@ paths:
           type: integer
           format: int64
       responses:
-        "200":
+        '200':
           description: OK
   /internal/eventos/{id}/agotado:
     post:
@@ -217,17 +192,16 @@ paths:
           type: integer
           format: int64
       responses:
-        "200":
+        '200':
           description: OK
   /eventos:
     get:
       tags:
       - Eventos
       summary: Buscar eventos
-      description: "Búsqueda por múltiples criterios combinables. Solo devuelve eventos\
-        \ PUBLICADOS o AGOTADOS. Orden: `fecha` (default), `precio` (precio mínimo\
-        \ del evento) o `relevancia` (coincidencias del texto `q` en nombre, participantes\
-        \ y descripción)."
+      description: 'Búsqueda por múltiples criterios combinables. Solo devuelve eventos PUBLICADOS o AGOTADOS. Orden: `fecha`
+        (default), `precio` (precio mínimo del evento) o `relevancia` (coincidencias del texto `q` en nombre, participantes
+        y descripción).'
       operationId: buscar
       parameters:
       - name: q
@@ -275,14 +249,14 @@ paths:
         schema:
           type: string
           format: date
-        example: 2026-12-01
+        example: '2026-12-01'
       - name: hasta
         in: query
         required: false
         schema:
           type: string
           format: date
-        example: 2026-12-31
+        example: '2026-12-31'
       - name: orden
         in: query
         description: fecha | precio | relevancia
@@ -313,71 +287,55 @@ paths:
           format: int32
           default: 10
       responses:
-        "400":
-          description: "Parámetros inválidos (ej: orden desconocido o rango de fechas\
-            \ invertido)"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "200":
+        '200':
           description: Página de resultados
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PaginaResponseEventoResponse"
+                $ref: '#/components/schemas/PaginaResponseEventoResponse'
+        '400':
+          description: 'Parámetros inválidos (ej: orden desconocido o rango de fechas invertido)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     post:
       tags:
       - Eventos
       summary: Crear evento (queda en BORRADOR)
-      description: El organizador es el usuario del header X-Usuario-Id. Requiere
-        rol ORGANIZADOR o ADMIN.
+      description: El organizador es el usuario del header X-Usuario-Id. Requiere rol ORGANIZADOR o ADMIN.
       operationId: crear_1
-      parameters:
-      - name: X-Usuario-Id
-        in: header
-        required: true
-        schema:
-          type: integer
-          format: int64
-        example: 10
-      - name: X-Rol
-        in: header
-        required: false
-        schema:
-          type: string
-        example: ORGANIZADOR
       requestBody:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/EventoRequest"
+              $ref: '#/components/schemas/EventoRequest'
         required: true
       responses:
-        "201":
-          description: Evento creado en borrador
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/EventoResponse"
-        "404":
-          description: No existe el lugar
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "400":
-          description: Datos inválidos
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "403":
+        '403':
           description: Rol no autorizado
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
+        '201':
+          description: Evento creado en borrador
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventoResponse'
+        '400':
+          description: Datos inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No existe el lugar
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /eventos/{id}/suspender:
     post:
       tags:
@@ -392,23 +350,58 @@ paths:
         schema:
           type: integer
           format: int64
-      - name: X-Rol
-        in: header
-        required: false
-        schema:
-          type: string
       requestBody:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CambioEstadoRequest"
+              $ref: '#/components/schemas/CambioEstadoRequest'
       responses:
-        "403":
+        '403':
           description: No es administrador
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
+  /eventos/{id}/reprogramar:
+    post:
+      tags:
+      - Eventos
+      summary: Reprogramar (cambiar la fecha de) un evento publicado
+      description: Organizador dueño o ADMIN. Se actualiza la disponibilidad y se notifica a los compradores (asincrónico).
+        El plazo de devolución de 72 hs pasa a contarse desde la nueva fecha.
+      operationId: reprogramar
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReprogramacionRequest'
+        required: true
+      responses:
+        '409':
+          description: El evento está en borrador, cancelado o finalizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '200':
+          description: Evento reprogramado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventoResponse'
+        '403':
+          description: No es el organizador del evento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /eventos/{id}/reanudar:
     post:
       tags:
@@ -422,26 +415,20 @@ paths:
         schema:
           type: integer
           format: int64
-      - name: X-Rol
-        in: header
-        required: false
-        schema:
-          type: string
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EventoResponse"
+                $ref: '#/components/schemas/EventoResponse'
   /eventos/{id}/publicar:
     post:
       tags:
       - Eventos
       summary: Publicar un evento
-      description: Requiere que todos los sectores del lugar tengan precio. Al publicar
-        se crea el inventario de lugares en ms-reservas y el evento queda visible
-        en las búsquedas.
+      description: Requiere que todos los sectores del lugar tengan precio. Al publicar se crea el inventario de lugares en
+        ms-reservas y el evento queda visible en las búsquedas.
       operationId: publicar
       parameters:
       - name: id
@@ -450,43 +437,32 @@ paths:
         schema:
           type: integer
           format: int64
-      - name: X-Usuario-Id
-        in: header
-        required: true
-        schema:
-          type: integer
-          format: int64
-      - name: X-Rol
-        in: header
-        required: false
-        schema:
-          type: string
       responses:
-        "200":
-          description: Evento publicado
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/EventoResponse"
-        "409":
-          description: Faltan precios o el evento no está en borrador
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "502":
+        '502':
           description: ms-reservas no respondió; el evento sigue en borrador
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Faltan precios o el evento no está en borrador
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '200':
+          description: Evento publicado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventoResponse'
   /eventos/{id}/cancelar:
     post:
       tags:
       - Eventos
       summary: Cancelar un evento (solo ADMIN)
-      description: Deshabilita la venta y todas las entradas vendidas pasan a reintegro
-        (ms-compras solicita el reintegro a la pasarela de pagos). Es idempotente.
+      description: Deshabilita la venta y todas las entradas vendidas pasan a reintegro (ms-compras solicita el reintegro
+        a la pasarela de pagos). Es idempotente.
       operationId: cancelar
       parameters:
       - name: id
@@ -495,29 +471,24 @@ paths:
         schema:
           type: integer
           format: int64
-      - name: X-Rol
-        in: header
-        required: false
-        schema:
-          type: string
       requestBody:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CambioEstadoRequest"
+              $ref: '#/components/schemas/CambioEstadoRequest'
       responses:
-        "403":
-          description: No es administrador
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "409":
+        '409':
           description: El evento ya finalizó
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: No es administrador
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /lugares/{id}:
     get:
       tags:
@@ -532,25 +503,25 @@ paths:
           type: integer
           format: int64
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/LugarResponse"
-        "404":
+                $ref: '#/components/schemas/LugarResponse'
+        '404':
           description: No existe el lugar
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
   /lugares/{id}/sectores/{sectorId}/asientos:
     get:
       tags:
       - Lugares
       summary: Listar los asientos de un sector numerado
-      description: "Devuelve la grilla de asientos del lugar (sin estado). El estado\
-        \ de cada asiento para un evento se consulta en ms-reservas: GET /disponibilidad/eventos/{eventoId}/sectores/{sectorId}/asientos"
+      description: 'Devuelve la grilla de asientos del lugar (sin estado). El estado de cada asiento para un evento se consulta
+        en ms-reservas: GET /disponibilidad/eventos/{eventoId}/sectores/{sectorId}/asientos'
       operationId: asientos
       parameters:
       - name: id
@@ -566,12 +537,12 @@ paths:
           type: integer
           format: int64
       responses:
-        "404":
+        '404':
           description: No existe el lugar o el sector
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
     EventoRequest:
@@ -604,7 +575,7 @@ components:
           - Los Piojos
           items:
             type: string
-            example: "[\"Los Piojos\"]"
+            example: '["Los Piojos"]'
         fechaHora:
           type: string
           format: date-time
@@ -614,7 +585,7 @@ components:
           example: 1
         altaDemanda:
           type: boolean
-          description: "Si es true, en la entrega 2 se usa fila virtual"
+          description: Si es true, la venta se hace con fila virtual
           example: false
         limiteEntradasPorCliente:
           maximum: 20
@@ -670,7 +641,7 @@ components:
         precios:
           type: array
           items:
-            $ref: "#/components/schemas/PrecioSectorRequest"
+            $ref: '#/components/schemas/PrecioSectorRequest'
     LugarRequest:
       required:
       - ciudad
@@ -699,7 +670,7 @@ components:
         sectores:
           type: array
           items:
-            $ref: "#/components/schemas/SectorRequest"
+            $ref: '#/components/schemas/SectorRequest'
     SectorRequest:
       required:
       - nombre
@@ -733,8 +704,7 @@ components:
           description: Solo para NUMERADO
           format: int32
           example: 20
-      description: Sector de un lugar. Para NUMERADO se indican filas y asientos por
-        fila; para NO_NUMERADO la capacidad.
+      description: Sector de un lugar. Para NUMERADO se indican filas y asientos por fila; para NO_NUMERADO la capacidad.
     LugarResponse:
       type: object
       properties:
@@ -762,7 +732,7 @@ components:
         sectores:
           type: array
           items:
-            $ref: "#/components/schemas/SectorResponse"
+            $ref: '#/components/schemas/SectorResponse'
     SectorResponse:
       type: object
       properties:
@@ -818,7 +788,7 @@ components:
           type: string
           format: date-time
         lugar:
-          $ref: "#/components/schemas/LugarResumen"
+          $ref: '#/components/schemas/LugarResumen'
         estado:
           type: string
           example: PUBLICADO
@@ -841,7 +811,7 @@ components:
         precios:
           type: array
           items:
-            $ref: "#/components/schemas/PrecioSectorResponse"
+            $ref: '#/components/schemas/PrecioSectorResponse'
     LugarResumen:
       type: object
       properties:
@@ -880,13 +850,24 @@ components:
         motivo:
           type: string
           example: El artista suspendió la gira por problemas de salud
+    ReprogramacionRequest:
+      required:
+      - fechaHora
+      type: object
+      properties:
+        fechaHora:
+          type: string
+          format: date-time
+        motivo:
+          type: string
+          example: 'Lluvias: se pasa al mes siguiente'
     PaginaResponseEventoResponse:
       type: object
       properties:
         contenido:
           type: array
           items:
-            $ref: "#/components/schemas/EventoResponse"
+            $ref: '#/components/schemas/EventoResponse'
         pagina:
           type: integer
           format: int32
@@ -904,3 +885,8 @@ components:
           format: int32
           example: 3
       description: Resultado paginado
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

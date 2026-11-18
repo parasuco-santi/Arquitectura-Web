@@ -41,7 +41,7 @@ public class LugarController {
     @ApiResponse(responseCode = "403", description = "El rol no puede crear lugares",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     public LugarResponse crear(@Valid @RequestBody LugarRequest request,
-                               @Parameter(example = "ORGANIZADOR") @RequestHeader(value = "X-Rol", required = false) String rol) {
+                               @Parameter(hidden = true) @RequestHeader(value = "X-Rol", required = false) String rol) {
         Rol r = Rol.desde(rol);
         if (r != Rol.ORGANIZADOR && r != Rol.ADMIN) {
             throw new AccesoDenegadoException("Solo organizadores o administradores pueden crear lugares");

@@ -1,6 +1,9 @@
 package com.ticketya.reservas.config;
 
+import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.servers.Server;
 import org.springframework.context.annotation.Bean;
@@ -23,7 +26,7 @@ public class AppConfig {
         return new OpenAPI()
                 .info(new Info()
                         .title("TicketYa - ms-reservas")
-                        .version("1.0.0")
+                        .version("2.0.0")
                         .description("""
                                 Disponibilidad de lugares por evento y reservas temporales.
 
@@ -33,7 +36,14 @@ public class AppConfig {
 
                                 Una reserva queda PENDIENTE durante 10 minutos (configurable); si no se confirma
                                 el pago en ese tiempo pasa a VENCIDA y los lugares se liberan.
+
+                                **Entrega 2:** reservar es solo para el rol CLIENTE (JWT). En los eventos de
+                                **alta demanda** hay que mandar además el turno de la fila virtual en el header
+                                `X-Turno-Fila` (lo entrega ms-fila); sin turno válido se responde 403.
                                 """))
+                .components(new Components().addSecuritySchemes("bearerAuth",
+                        new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("bearer").bearerFormat("JWT")))
+                .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
                 .servers(List.of(
                         new Server().url("http://localhost:8080/api").description("A través del API Gateway"),
                         new Server().url("http://localhost:8082").description("Directo al microservicio")));

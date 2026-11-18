@@ -16,7 +16,8 @@ public record DisponibilidadInicialRequest(
         String nombreEvento,
         LocalDateTime fechaEvento,
         Integer limitePorCliente,
-        List<SectorInicial> sectores) {
+        List<SectorInicial> sectores,
+        boolean altaDemanda) {
 
     public record SectorInicial(Long sectorId, String nombre, TipoSector tipo, BigDecimal precio,
                                 Integer capacidad, List<AsientoInicial> asientos) {

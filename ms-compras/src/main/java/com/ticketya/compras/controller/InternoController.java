@@ -13,9 +13,19 @@ import org.springframework.web.bind.annotation.*;
 public class InternoController {
 
     private final CancelacionEventoService cancelacionService;
+    private final com.ticketya.compras.repository.EntradaRepository entradaRepository;
 
-    public InternoController(CancelacionEventoService cancelacionService) {
+    public InternoController(CancelacionEventoService cancelacionService,
+                             com.ticketya.compras.repository.EntradaRepository entradaRepository) {
         this.cancelacionService = cancelacionService;
+        this.entradaRepository = entradaRepository;
+    }
+
+    @GetMapping("/{eventoId}/compradores")
+    @Operation(summary = "[Interno] Compradores de un evento (lo usa ms-notificaciones)",
+            description = "Ids de los usuarios con entradas válidas, utilizadas o canceladas del evento.")
+    public java.util.List<Long> compradores(@PathVariable Long eventoId) {
+        return entradaRepository.compradoresDeEvento(eventoId);
     }
 
     @PostMapping("/{eventoId}/cancelacion")

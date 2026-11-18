@@ -30,6 +30,7 @@ public class RestClientConfig {
         HttpClient httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofMillis(timeoutMs)).build();
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClient);
         factory.setReadTimeout(Duration.ofMillis(timeoutMs));
-        return RestClient.builder().baseUrl(baseUrl).requestFactory(factory).build();
+        return RestClient.builder().baseUrl(baseUrl).requestFactory(factory)
+                .requestInterceptor(new com.ticketya.eventos.trazabilidad.CorrelacionInterceptor()).build();
     }
 }
