@@ -22,5 +22,11 @@
         <module>ms-reservas</module>
         <module>ms-compras</module>
         <module>ms-pagos</module>
+        <module>ms-usuarios</module>
+        <module>ms-fila</module>
+        <module>ms-recomendaciones</module>
+        <module>ms-notificaciones</module>
+        <module>ms-bitacora</module>
+        <module>tests-integracion</module>
     </modules>
 </project>
