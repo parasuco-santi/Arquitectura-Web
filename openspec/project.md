@@ -10,18 +10,26 @@ Trabajo Práctico Especial de Arquitectura Web (TUDAI, 2026). Este repositorio c
 
 ## Stack tecnológico
 - Java 21, Spring Boot 3.3, Spring Data JPA, Bean Validation
-- Spring Cloud Gateway como API Gateway
-- PostgreSQL 16 (una base por microservicio), H2 para tests y para correr sin Docker
+- Spring Cloud Gateway como API Gateway, Spring Security (OAuth2 Resource Server) para validar JWT
+- PostgreSQL 16 (una base por microservicio relacional), H2 para tests y para correr sin Docker
+- MongoDB 7 (ms-recomendaciones, ms-notificaciones, ms-bitacora), Redis 7 (cache y fila virtual)
+- RabbitMQ (Spring AMQP) para la mensajería asincrónica, Resilience4j para timeouts, reintentos y circuit breaker
 - springdoc-openapi (Swagger UI)
-- JUnit 5, Mockito, AssertJ, Testcontainers
-- Docker / docker-compose (en la entrega 1 solo para las bases)
+- JUnit 5, Mockito, AssertJ, Testcontainers, WireMock, RestAssured, JMeter
+- Docker: un contenedor por servicio y un único docker-compose con todo el sistema
 
 ## Convenciones
 - Código, endpoints, entidades y mensajes en **español** (es el idioma del dominio y del equipo).
 - Un proyecto Maven independiente por microservicio, paquete base `com.ticketya.<servicio>`.
 - Capas: `controller` → `service` → `repository`; DTOs como `record` en `dto`; errores con un
   `GlobalExceptionHandler` por servicio y un formato común `ErrorResponse`.
-- Comunicación entre servicios con `RestClient` síncrono y timeouts cortos.
+- Comunicación entre servicios con `RestClient` síncrono y timeouts cortos cuando se necesita la respuesta
+  en el momento; mensajes por RabbitMQ (outbox + consumidores idempotentes) cuando no.
+- Mensajes con nombre `entidad.evento-en-pasado` (`evento.publicado`, `compra.confirmada`); colas
+  `<servicio>.<mensaje>` con su DLQ.
+- Todo request lleva `X-Correlation-Id` (lo genera el gateway) y se propaga a REST, AMQP y logs.
+- Operaciones críticas se registran en la bitácora (`Bitacora.registrar(operacion, resultado, usuario, detalle)`)
+  con nombre `entidad.accion`.
 - Endpoints que solo usan otros servicios van bajo `/internal/**` o están documentados como `[Interno]`
   y el gateway no los expone.
 - Commits en español, en presente o infinitivo ("agrega", "corrige", ...).
@@ -31,7 +39,11 @@ Trabajo Práctico Especial de Arquitectura Web (TUDAI, 2026). Este repositorio c
 - La reserva temporal de lugares dura 10 minutos.
 - Límite de entradas por cliente para un mismo evento (configurable por evento, 6 por defecto).
 - La devolución se puede pedir hasta 72 horas antes del evento.
-- Entrega 1 sin autenticación: el usuario viaja en los headers `X-Usuario-Id` y `X-Rol`.
+- Roles: CLIENTE, ORGANIZADOR, ADMIN y ACCESO. El registro público siempre crea clientes.
+- Desde la entrega 2 la identidad viaja en un JWT (`Authorization: Bearer`); el gateway lo valida y les pasa a
+  los servicios `X-Usuario-Id` / `X-Rol` (pisando los que mande el cliente). En la entrega 1 esos headers los
+  mandaba directamente el cliente.
+- En eventos de alta demanda solo se puede reservar con un turno de la fila virtual.
 
 ## Proceso (spec-driven)
 Cada funcionalidad arranca como un *change* en `openspec/changes/<id>/` con:
