@@ -2,15 +2,18 @@ openapi: 3.0.1
 info:
   title: TicketYa - ms-pagos
   description: |
-    Pasarela de pagos **simulada** para la entrega 1. Lo usa ms-compras (no se expone
-    al público a través del gateway salvo para consultas).
+    Pasarela de pagos **simulada**. Solo la usa ms-compras: el gateway no la expone.
+    Con `PASARELA_TASA_FALLOS` (0 a 1) se simulan caídas (503 sin cobrar) para probar
+    los reintentos, el circuit breaker y la recuperación de compras de ms-compras.
 
     Tarjetas de prueba: terminada en `0002` → rechazada (fondos insuficientes),
     terminada en `0069` → rechazada (tarjeta vencida), cualquier otra → aprobada.
-  version: 1.0.0
+  version: 2.0.0
 servers:
 - url: http://localhost:8084
   description: Directo al microservicio
+security:
+- bearerAuth: []
 tags:
 - name: Pagos
   description: Pasarela de pagos simulada (mock)
@@ -29,22 +32,21 @@ paths:
           type: integer
           format: int64
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/PagoResponse"
+                  $ref: '#/components/schemas/PagoResponse'
     post:
       tags:
       - Pagos
       summary: Cobrar
-      description: Registra un intento de cobro. La respuesta indica si fue APROBADO
-        o RECHAZADO (los dos casos son 201 porque el intento queda registrado). Reenviar
-        la misma Idempotency-Key devuelve el pago original con 200 y no se vuelve
-        a cobrar.
+      description: Registra un intento de cobro. La respuesta indica si fue APROBADO o RECHAZADO (los dos casos son 201 porque
+        el intento queda registrado). Reenviar la misma Idempotency-Key devuelve el pago original con 200 y no se vuelve a
+        cobrar.
       operationId: pagar
       parameters:
       - name: Idempotency-Key
@@ -57,40 +59,40 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/PagoRequest"
+              $ref: '#/components/schemas/PagoRequest'
         required: true
       responses:
-        "400":
-          description: Datos inválidos o falta Idempotency-Key
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "422":
+        '422':
           description: La Idempotency-Key ya se usó con otros datos
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "200":
-          description: "Pedido repetido: se devuelve el pago original"
+                $ref: '#/components/schemas/ErrorResponse'
+        '200':
+          description: 'Pedido repetido: se devuelve el pago original'
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PagoResponse"
-        "201":
+                $ref: '#/components/schemas/PagoResponse'
+        '201':
           description: Pago procesado (aprobado o rechazado)
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PagoResponse"
+                $ref: '#/components/schemas/PagoResponse'
+        '400':
+          description: Datos inválidos o falta Idempotency-Key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /pagos/{id}/reintegros:
     post:
       tags:
       - Pagos
       summary: Reintegrar (total o parcial)
-      description: Devuelve dinero de un pago aprobado. La suma de reintegros no puede
-        superar el monto cobrado. Idempotente por Idempotency-Key.
+      description: Devuelve dinero de un pago aprobado. La suma de reintegros no puede superar el monto cobrado. Idempotente
+        por Idempotency-Key.
       operationId: reintegrar
       parameters:
       - name: id
@@ -109,27 +111,27 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ReintegroRequest"
+              $ref: '#/components/schemas/ReintegroRequest'
         required: true
       responses:
-        "409":
-          description: El pago no está aprobado o el monto supera lo cobrado
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "201":
+        '201':
           description: Reintegro realizado
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ReintegroResponse"
-        "200":
-          description: "Pedido repetido: se devuelve el reintegro original"
+                $ref: '#/components/schemas/ReintegroResponse'
+        '200':
+          description: 'Pedido repetido: se devuelve el reintegro original'
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ReintegroResponse"
+                $ref: '#/components/schemas/ReintegroResponse'
+        '409':
+          description: El pago no está aprobado o el monto supera lo cobrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /pagos/{id}:
     get:
       tags:
@@ -144,12 +146,12 @@ paths:
           type: integer
           format: int64
       responses:
-        "404":
+        '404':
           description: No existe
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
     DatosMedioPago:
@@ -165,9 +167,9 @@ components:
           - TARJETA_DEBITO
           - MERCADO_PAGO
         numeroTarjeta:
-          pattern: "\\d{13,19}"
+          pattern: \d{13,19}
           type: string
-          example: "4509953566233704"
+          example: '4509953566233704'
         titular:
           type: string
           example: Juan Perez
@@ -202,7 +204,7 @@ components:
           type: number
           example: 90000.0
         medioPago:
-          $ref: "#/components/schemas/DatosMedioPago"
+          $ref: '#/components/schemas/DatosMedioPago'
     ErrorResponse:
       type: object
       properties:
@@ -250,7 +252,7 @@ components:
           - MERCADO_PAGO
         ultimosDigitos:
           type: string
-          example: "3704"
+          example: '3704'
         estado:
           type: string
           example: APROBADO
@@ -262,7 +264,7 @@ components:
           example: AUT-7F3K9Q
         motivoRechazo:
           type: string
-          example: "null"
+          example: 'null'
         totalReintegrado:
           type: number
           example: 0.0
@@ -272,7 +274,7 @@ components:
         reintegros:
           type: array
           items:
-            $ref: "#/components/schemas/ReintegroResponse"
+            $ref: '#/components/schemas/ReintegroResponse'
     ReintegroResponse:
       type: object
       properties:
@@ -309,3 +311,8 @@ components:
         motivo:
           type: string
           example: Devolución aprobada de la entrada 31
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
