@@ -34,6 +34,8 @@ abstract class ComprasTestBase {
     protected ReservasClient reservasClient;
     @MockBean
     protected PagosClient pagosClient;
+    @MockBean
+    protected EventosClient eventosClient;
     @Autowired
     protected CompraService compraService;
 
@@ -56,8 +58,18 @@ abstract class ComprasTestBase {
 
     /** Deja los mocks listos para que la compra de esa reserva salga aprobada. */
     protected ReservaDto prepararCompraAprobada(long eventoId, LocalDateTime fechaEvento) {
+        return prepararCompraAprobada(eventoId, fechaEvento, 0);
+    }
+
+    /** Igual que el anterior pero corre los asientos (para varias compras del mismo evento). */
+    protected ReservaDto prepararCompraAprobada(long eventoId, LocalDateTime fechaEvento, int corrimiento) {
         long reservaId = nuevoId();
-        ReservaDto reserva = reservaPendiente(reservaId, eventoId, fechaEvento);
+        ReservaDto base = reservaPendiente(reservaId, eventoId, fechaEvento);
+        ReservaDto reserva = corrimiento == 0 ? base : new ReservaDto(base.id(), base.usuarioId(), base.eventoId(),
+                base.nombreEvento(), base.fechaEvento(), base.sectorId(), base.sector(), base.cantidad(),
+                base.precioUnitario(), base.montoTotal(), base.estado(), base.expiraEn(), base.segundosRestantes(),
+                base.items().stream().map(i -> new ReservaDto.Item(i.asientoId() + corrimiento, i.fila(),
+                        i.numero() + corrimiento)).toList());
         when(reservasClient.obtener(reservaId)).thenReturn(reserva);
         when(reservasClient.confirmar(reservaId)).thenReturn(confirmada(reserva));
         when(pagosClient.pagar(any(), eq(CLIENTE), any(), any(), anyString()))

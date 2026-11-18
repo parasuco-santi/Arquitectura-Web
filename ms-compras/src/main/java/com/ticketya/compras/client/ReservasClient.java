@@ -10,4 +10,7 @@ public interface ReservasClient {
 
     /** Devuelve al inventario un lugar vendido (devolucion aprobada). */
     void liberarVendido(Long eventoId, Long reservaId, Long sectorId, Long asientoId, String idempotencyKey);
+
+    /** Capacidad y disponibles por sector (para los reportes de ocupacion). */
+    DisponibilidadDto disponibilidad(Long eventoId);
 }

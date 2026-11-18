@@ -51,7 +51,7 @@ public class CompraController {
             content = @Content(schema = @Schema(implementation = CompraResponse.class)))
     public ResponseEntity<CompraResponse> comprar(
             @Valid @RequestBody CompraRequest request,
-            @Parameter(example = "100") @RequestHeader("X-Usuario-Id") Long usuarioId,
+            @Parameter(hidden = true) @RequestHeader("X-Usuario-Id") Long usuarioId,
             @Parameter(example = "3f6c1b8e-2a41-4d0c-9b7e-5e2f0a1c9d33") @RequestHeader("Idempotency-Key") String clave) {
         ResultadoCompra r = compraService.comprar(usuarioId, request, clave);
         return ResponseEntity.status(r.status()).body(r.compra());
@@ -70,7 +70,8 @@ public class CompraController {
     @ApiResponse(responseCode = "404", description = "No existe",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     public CompraResponse obtener(@PathVariable Long id,
-                                  @RequestHeader(value = "X-Usuario-Id", required = false) Long usuarioId) {
-        return compraService.obtener(id, usuarioId);
+                                  @Parameter(hidden = true) @RequestHeader(value = "X-Usuario-Id", required = false) Long usuarioId,
+                                  @Parameter(hidden = true) @RequestHeader(value = "X-Rol", required = false) String rol) {
+        return compraService.obtener(id, usuarioId, rol);
     }
 }
