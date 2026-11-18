@@ -10,7 +10,7 @@ x-servicio: &servicio
   restart: unless-stopped
   environment: &entorno
     TZ: America/Argentina/Buenos_Aires
-    JAVA_OPTS: "-XX:MaxRAMPercentage=75 -XX:+UseSerialGC -Duser.timezone=America/Argentina/Buenos_Aires"
+    JAVA_OPTS: "-XX:MaxRAMPercentage=75 -XX:+UseSerialGC -Duser.timezone=America/Argentina/Buenos_Aires -Dsun.net.inetaddr.ttl=5"
     RABBIT_HOST: rabbitmq
     REDIS_HOST: redis
     JWT_SECRETO: ${JWT_SECRETO:-ticketya-clave-de-desarrollo-cambiar-en-produccion-2026}
