@@ -15,7 +15,14 @@ public record DisponibilidadInicialRequest(
         @NotNull String nombreEvento,
         @NotNull LocalDateTime fechaEvento,
         @NotNull Integer limitePorCliente,
-        @NotEmpty @Valid List<SectorInicial> sectores) {
+        @NotEmpty @Valid List<SectorInicial> sectores,
+        Boolean altaDemanda) {
+
+    /** Constructor de la entrega 1 (sin fila virtual). */
+    public DisponibilidadInicialRequest(Long eventoId, String nombreEvento, LocalDateTime fechaEvento,
+                                        Integer limitePorCliente, List<SectorInicial> sectores) {
+        this(eventoId, nombreEvento, fechaEvento, limitePorCliente, sectores, false);
+    }
 
     public record SectorInicial(@NotNull Long sectorId, @NotNull String nombre, @NotNull TipoSector tipo,
                                 @NotNull BigDecimal precio, @NotNull Integer capacidad,

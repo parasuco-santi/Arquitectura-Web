@@ -37,6 +37,8 @@ public class ReservaController {
     @ApiResponse(responseCode = "201", description = "Reserva creada en estado PENDIENTE")
     @ApiResponse(responseCode = "400", description = "Pedido inválido (ej: asientos en un sector no numerado)",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(responseCode = "403", description = "Evento de alta demanda sin turno válido de la fila virtual",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(responseCode = "404", description = "Evento, sector o asiento inexistente",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(responseCode = "409", description = "Lugar no disponible o evento sin venta habilitada",
@@ -44,8 +46,10 @@ public class ReservaController {
     @ApiResponse(responseCode = "422", description = "Supera el límite de entradas por cliente",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     public ReservaResponse crear(@Valid @RequestBody ReservaRequest request,
-                                 @Parameter(example = "100") @RequestHeader("X-Usuario-Id") Long usuarioId) {
-        return reservaService.crear(usuarioId, request);
+                                 @Parameter(hidden = true) @RequestHeader("X-Usuario-Id") Long usuarioId,
+                                 @Parameter(description = "Turno de la fila virtual (solo eventos de alta demanda)")
+                                 @RequestHeader(value = "X-Turno-Fila", required = false) String turno) {
+        return reservaService.crear(usuarioId, request, turno);
     }
 
     @GetMapping

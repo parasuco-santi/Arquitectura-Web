@@ -7,6 +7,7 @@ import com.ticketya.reservas.dto.ReservaResponse;
 import com.ticketya.reservas.exception.*;
 import com.ticketya.reservas.model.*;
 import com.ticketya.reservas.repository.*;
+import com.ticketya.reservas.trazabilidad.Bitacora;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -40,12 +41,15 @@ public class ReservaService {
     private final EventosClient eventosClient;
     private final Clock clock;
     private final int minutosVigencia;
+    private final ValidadorTurno validadorTurno;
+    private final Bitacora bitacora;
 
     public ReservaService(ReservaRepository reservaRepository, EventoDisponibilidadRepository eventoRepository,
                           SectorDisponibilidadRepository sectorRepository,
                           AsientoDisponibilidadRepository asientoRepository,
                           LiberacionRepository liberacionRepository, EventosClient eventosClient, Clock clock,
-                          @Value("${reservas.minutos-vigencia:10}") int minutosVigencia) {
+                          @Value("${reservas.minutos-vigencia:10}") int minutosVigencia,
+                          ValidadorTurno validadorTurno, Bitacora bitacora) {
         this.reservaRepository = reservaRepository;
         this.eventoRepository = eventoRepository;
         this.sectorRepository = sectorRepository;
@@ -54,10 +58,20 @@ public class ReservaService {
         this.eventosClient = eventosClient;
         this.clock = clock;
         this.minutosVigencia = minutosVigencia;
+        this.validadorTurno = validadorTurno;
+        this.bitacora = bitacora;
     }
 
     @Transactional
     public ReservaResponse crear(Long usuarioId, ReservaRequest req) {
+        return crear(usuarioId, req, null);
+    }
+
+    /**
+     * @param turno turno de la fila virtual (header X-Turno-Fila); solo se exige en eventos de alta demanda
+     */
+    @Transactional
+    public ReservaResponse crear(Long usuarioId, ReservaRequest req, String turno) {
         LocalDateTime ahora = LocalDateTime.now(clock);
         EventoDisponibilidad evento = eventoRepository.findById(req.eventoId())
                 .orElseThrow(() -> new RecursoNoEncontradoException("El evento " + req.eventoId()
@@ -67,6 +81,9 @@ public class ReservaService {
         }
         if (!evento.getFechaEvento().isAfter(ahora)) {
             throw new OperacionInvalidaException("El evento ya ocurrió");
+        }
+        if (evento.isAltaDemanda()) {
+            validadorTurno.validar(turno, req.eventoId(), usuarioId);
         }
         SectorDisponibilidad sector = sectorRepository.findByEventoIdAndSectorId(req.eventoId(), req.sectorId())
                 .orElseThrow(() -> new RecursoNoEncontradoException("El evento no tiene el sector " + req.sectorId()));
@@ -175,6 +192,8 @@ public class ReservaService {
             }
         });
         log.info("Reserva {} confirmada", id);
+        bitacora.registrar("reserva.confirmada", "OK", reserva.getUsuarioId(),
+                Map.of("reservaId", id, "eventoId", eventoId, "cantidad", reserva.getCantidad()));
         return armarRespuesta(buscar(id));
     }
 
@@ -198,6 +217,10 @@ public class ReservaService {
         }
         sectorRepository.reponer(reserva.getEventoId(), reserva.getSectorId(), reserva.getCantidad());
         log.info("Reserva {} pasó a {} y se liberaron {} lugares", id, estadoFinal, reserva.getCantidad());
+        if (estadoFinal == EstadoReserva.LIBERADA) {
+            bitacora.registrar("reserva.liberada", "OK", reserva.getUsuarioId(),
+                    Map.of("reservaId", id, "eventoId", reserva.getEventoId(), "cantidad", reserva.getCantidad()));
+        }
         return armarRespuesta(buscar(id));
     }
 
@@ -242,6 +265,12 @@ public class ReservaService {
             despuesDelCommit(() -> eventosClient.marcarDisponible(eventoId));
         }
         log.info("Liberado lugar vendido: evento={}, reserva={}, asiento={}", eventoId, req.reservaId(), req.asientoId());
+        Map<String, Object> detalle = new HashMap<>();
+        detalle.put("eventoId", eventoId);
+        detalle.put("reservaId", req.reservaId());
+        detalle.put("asientoId", req.asientoId());
+        detalle.put("clave", clave);
+        bitacora.registrar("lugar.liberado", "OK", reserva.getUsuarioId(), detalle);
     }
 
     private Reserva buscar(Long id) {

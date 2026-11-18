@@ -12,6 +12,7 @@ public record DisponibilidadResponse(
         @Schema(example = "Los Piojos - Ritual 2026") String nombreEvento,
         @Schema(example = "2026-12-15T21:00:00") LocalDateTime fechaEvento,
         @Schema(example = "true") boolean habilitado,
+        @Schema(description = "Si es true, para reservar hace falta el turno de la fila virtual", example = "false") boolean altaDemanda,
         List<SectorDisponible> sectores) {
 
     public record SectorDisponible(

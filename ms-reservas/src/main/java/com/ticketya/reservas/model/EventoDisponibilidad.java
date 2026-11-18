@@ -28,6 +28,10 @@ public class EventoDisponibilidad {
     @Column(nullable = false)
     private boolean habilitado = true;
 
+    /** Eventos con fila virtual: para reservar hace falta el turno firmado por ms-fila. */
+    @Column(name = "alta_demanda", nullable = false, columnDefinition = "boolean default false")
+    private boolean altaDemanda;
+
     @Column(name = "actualizado_en")
     private LocalDateTime actualizadoEn = LocalDateTime.now();
 
@@ -41,6 +45,16 @@ public class EventoDisponibilidad {
         this.limitePorCliente = limitePorCliente;
     }
 
+    public void setAltaDemanda(boolean altaDemanda) {
+        this.altaDemanda = altaDemanda;
+    }
+
+    /** Reprogramacion del evento: la fecha se usa para no aceptar reservas de eventos que ya ocurrieron. */
+    public void setFechaEvento(LocalDateTime fechaEvento) {
+        this.fechaEvento = fechaEvento;
+        this.actualizadoEn = LocalDateTime.now();
+    }
+
     public void setHabilitado(boolean habilitado) {
         this.habilitado = habilitado;
         this.actualizadoEn = LocalDateTime.now();
@@ -51,4 +65,5 @@ public class EventoDisponibilidad {
     public LocalDateTime getFechaEvento() { return fechaEvento; }
     public Integer getLimitePorCliente() { return limitePorCliente; }
     public boolean isHabilitado() { return habilitado; }
+    public boolean isAltaDemanda() { return altaDemanda; }
 }
