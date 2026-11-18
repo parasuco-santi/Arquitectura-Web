@@ -64,6 +64,7 @@ resilience4j:
         ignore-exceptions:
           - com.ticketya.compras.exception.RespuestaServicioException
           - io.github.resilience4j.circuitbreaker.CallNotPermittedException
+          - com.ticketya.compras.exception.CircuitoAbiertoException
     instances:
       pagos:
         base-config: default
@@ -75,12 +76,14 @@ resilience4j:
   circuitbreaker:
     configs:
       default:
+        # se abre si fallan la mitad de las ultimas 50 llamadas (con ventanas chicas, en la prueba de
+        # carga con 20% de fallas aleatorias el circuito se abria por rachas de mala suerte)
         sliding-window-type: COUNT_BASED
-        sliding-window-size: 10
-        minimum-number-of-calls: 5
+        sliding-window-size: 50
+        minimum-number-of-calls: 20
         failure-rate-threshold: 50
-        wait-duration-in-open-state: 15s
-        permitted-number-of-calls-in-half-open-state: 2
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 10
         automatic-transition-from-open-to-half-open-enabled: true
         record-exceptions:
           - com.ticketya.compras.exception.ServicioNoDisponibleException

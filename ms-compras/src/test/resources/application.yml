@@ -44,6 +44,7 @@ resilience4j:
         ignore-exceptions:
           - com.ticketya.compras.exception.RespuestaServicioException
           - io.github.resilience4j.circuitbreaker.CallNotPermittedException
+          - com.ticketya.compras.exception.CircuitoAbiertoException
     instances:
       pagos:
         base-config: default

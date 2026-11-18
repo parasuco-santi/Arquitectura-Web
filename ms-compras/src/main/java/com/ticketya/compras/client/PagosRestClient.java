@@ -1,6 +1,7 @@
 package com.ticketya.compras.client;
 
 import com.ticketya.compras.dto.DatosMedioPago;
+import com.ticketya.compras.exception.CircuitoAbiertoException;
 import com.ticketya.compras.exception.ServicioNoDisponibleException;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -96,7 +97,7 @@ public class PagosRestClient implements PagosClient {
 
     static RuntimeException traducir(Throwable t) {
         if (t instanceof CallNotPermittedException) {
-            return new ServicioNoDisponibleException("La pasarela de pagos no está disponible (circuito abierto)", t);
+            return new CircuitoAbiertoException("La pasarela de pagos no está disponible (circuito abierto)", t);
         }
         return t instanceof RuntimeException r ? r : new ServicioNoDisponibleException(SERVICIO + " falló", t);
     }
