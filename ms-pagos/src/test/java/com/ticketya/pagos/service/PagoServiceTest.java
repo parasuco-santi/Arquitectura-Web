@@ -25,6 +25,8 @@ class PagoServiceTest {
     private PagoService pagoService;
     @Autowired
     private PagoRepository pagoRepository;
+    @Autowired
+    private PasarelaMock pasarela;
 
     private PagoRequest pedido(long compraId, String tarjeta, String monto) {
         return new PagoRequest(compraId, 100L, new BigDecimal(monto),
@@ -104,5 +106,23 @@ class PagoServiceTest {
         assertThatThrownBy(() -> pagoService.reintegrar(pago.id(),
                 new ReintegroRequest(BigDecimal.TEN, "x"), clave()))
                 .isInstanceOf(OperacionInvalidaException.class);
+    }
+
+    @Test
+    void siLaPasarelaSeCaeNoSeCobraYElReintentoConLaMismaClaveFunciona() {
+        String clave = clave();
+        pasarela.setTasaFallos(1);
+        try {
+            assertThatThrownBy(() -> pagoService.pagar(pedido(20, "4509953566233704", "50000"), clave))
+                    .isInstanceOf(PasarelaNoDisponibleException.class);
+            assertThat(pagoRepository.findByCompraIdOrderByIdDesc(20L)).isEmpty();
+        } finally {
+            pasarela.setTasaFallos(0);
+        }
+
+        var reintento = pagoService.pagar(pedido(20, "4509953566233704", "50000"), clave);
+
+        assertThat(reintento.creado()).isTrue();
+        assertThat(reintento.cuerpo().estado()).isEqualTo(EstadoPago.APROBADO);
     }
 }

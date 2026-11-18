@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Simula la pasarela de pagos externa (la consigna pide un mock para la entrega 1).
@@ -15,22 +16,28 @@ import java.util.UUID;
  *  - tarjeta terminada en 0069 -> rechazada por tarjeta vencida
  *  - monto mayor al limite configurado -> rechazado
  *  - cualquier otro caso -> aprobado
- * Ademas tiene una demora configurable para simular la latencia de un servicio real.
+ * Ademas tiene una demora configurable para simular la latencia de un servicio real y (entrega 2)
+ * una tasa de fallos: en ese porcentaje de pedidos la pasarela "no esta disponible" y no cobra nada,
+ * para poder probar la resiliencia de ms-compras (reintentos, circuit breaker y recuperacion).
  */
 @Component
 public class PasarelaMock {
 
     private final long demoraMs;
     private final BigDecimal montoMaximo;
+    private volatile double tasaFallos;
 
     public PasarelaMock(@Value("${pasarela.demora-ms:300}") long demoraMs,
-                        @Value("${pasarela.monto-maximo:5000000}") BigDecimal montoMaximo) {
+                        @Value("${pasarela.monto-maximo:5000000}") BigDecimal montoMaximo,
+                        @Value("${pasarela.tasa-fallos:0}") double tasaFallos) {
         this.demoraMs = demoraMs;
         this.montoMaximo = montoMaximo;
+        this.tasaFallos = tasaFallos;
     }
 
     public Resultado cobrar(BigDecimal monto, DatosMedioPago medio) {
         esperar();
+        simularCaida();
         if (monto.compareTo(montoMaximo) > 0) {
             return Resultado.rechazado("El monto supera el límite permitido por la pasarela");
         }
@@ -48,6 +55,25 @@ public class PasarelaMock {
 
     public void reintegrar(BigDecimal monto) {
         esperar();
+        simularCaida();
+    }
+
+    public double getTasaFallos() {
+        return tasaFallos;
+    }
+
+    /** Permite cambiar la tasa en caliente (lo usan los tests). */
+    public void setTasaFallos(double tasaFallos) {
+        if (tasaFallos < 0 || tasaFallos > 1) {
+            throw new IllegalArgumentException("La tasa de fallos va de 0 a 1");
+        }
+        this.tasaFallos = tasaFallos;
+    }
+
+    private void simularCaida() {
+        if (tasaFallos > 0 && ThreadLocalRandom.current().nextDouble() < tasaFallos) {
+            throw new PasarelaNoDisponibleException("La pasarela externa no responde (falla simulada)");
+        }
     }
 
     private void esperar() {
