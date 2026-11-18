@@ -130,15 +130,22 @@ Tests run: 9,  Failures: 0, Errors: 0 -- ReservaServiceTest
 
 ### 3.2 Prueba contra el sistema levantado
 
-`scripts/prueba-doble-venta.sh` manda N requests simultáneos por el **gateway** pidiendo el mismo asiento:
+`scripts/prueba-doble-venta.sh` registra N clientes (cada uno con su JWT) y manda N requests simultáneos por el
+**gateway** pidiendo el mismo asiento. **(E2)** En docker-compose ms-reservas corre con **2 instancias**, así que
+los pedidos se reparten entre las dos:
 
 ```
-$ ./scripts/prueba-doble-venta.sh 2 2 15 80
-Resultados de 80 pedidos simultaneos:
+$ ./scripts/prueba-doble-venta.sh 3 4 106 50
+Registrando 50 clientes...
+Resultados de 50 pedidos simultaneos:
       1 201
-     79 409
+     49 409
 OK: el asiento se reservo una sola vez
 ```
+
+Lo mismo hace el test de integración `NoDobleVentaIT` (30 clientes) y la prueba de carga
+([07](07-prueba-de-carga.md)): 200 usuarios compitiendo por 1500 lugares terminaron con **exactamente 1500
+vendidos** y 250 pedidos rechazados con 409 (agotado).
 
 ### 3.3 Idempotencia
 
@@ -151,35 +158,70 @@ OK: el asiento se reservo una sola vez
 
 ## 4. Resumen de pruebas por servicio
 
-Se corren todas desde la raíz con `mvn test` (o en cada proyecto con `./mvnw test`).
+Desde la raíz, `mvn test` corre las pruebas de todos los proyectos (396 en la entrega 2). Las que usan
+Testcontainers (PostgreSQL, Redis, MongoDB) necesitan Docker; si no hay, se saltean solas.
 
 | Proyecto | Clase | Tipo | Qué cubre |
 |---|---|---|---|
-| ms-eventos | `EventoServiceTest` (14) | Unitaria (Mockito) | creación, precios, permisos, publicación (con y sin precios, falla de ms-reservas), suspensión, cancelación |
-| ms-eventos | `BusquedaServiceTest` (10) | Con base H2 | cada filtro, combinaciones, orden por fecha/precio/relevancia, tildes, paginado, rango inválido |
-| ms-reservas | `ReservaServiceTest` (9) | Unitaria | monto y vencimiento, límite por cliente, validaciones, idempotencia de confirmar/liberar |
-| ms-reservas | `NoDobleVenta*Test` (6 + 7) | Concurrencia, H2 y PostgreSQL | ver 3.1 |
+| api-gateway | `SeguridadEndpointsTest` (256) **(E2)** | Integración (gateway real + servicios simulados con WireMock + JWT firmados) | **cada endpoint con cada rol y sin token** (200/401/403), headers de identidad falsificados, token vencido / otra clave / otro emisor / mal formado |
+| api-gateway | `GatewayApplicationTest` (4) | Integración | endpoints internos bloqueados, correlation id |
+| ms-usuarios | `UsuarioServiceTest` (6) **(E2)** | Base H2 | registro como CLIENTE, email repetido, login correcto / incorrecto (mismo mensaje), JWT con claims, usuario deshabilitado |
+| ms-eventos | `EventoServiceTest` (19) | Unitaria (Mockito) | creación, precios, permisos, publicación, suspensión, cancelación; **(E2)** outbox de mensajes y reprogramación |
+| ms-eventos | `BusquedaServiceTest` (10) | Con base H2 | cada filtro, combinaciones, orden, tildes, paginado |
+| ms-eventos | `CacheRedisTest` (2) **(E2)** | **Redis real** (Testcontainers) | el detalle se sirve del cache y se invalida al modificar; serialización de páginas de búsqueda |
+| ms-reservas | `ReservaServiceTest` (12) | Unitaria | monto y vencimiento, límite por cliente, idempotencia; **(E2)** turno de la fila (sin turno, de otro cliente, válido) |
+| ms-reservas | `NoDobleVenta*Test` (6 + 7) | Concurrencia, H2 y **PostgreSQL** | ver 3.1 |
 | ms-compras | `CompraServiceTest` (10) | Base H2 + clientes mockeados | aprobada, rechazada, idempotencia, ERROR y reintento, compensación, permisos |
-| ms-compras | `DevolucionServiceTest` (9) | Base H2 + clientes mockeados | plazo de 72 hs, permisos, aprobar/rechazar, falla y reintento, cancelación de evento |
-| ms-pagos | `PagoServiceTest` (7) | Base H2 | tarjetas de prueba, idempotencia, reintegros parciales y límites |
-| api-gateway | `GatewayApplicationTest` (3) | Integración | endpoints internos bloqueados, correlation id |
+| ms-compras | `DevolucionServiceTest` (9) | Base H2 + clientes mockeados | plazo de 72 hs, permisos, aprobar/rechazar, cancelación de evento |
+| ms-compras | `AccesoServiceTest` (5) **(E2)** | Base H2 | QR válido, ya utilizado, otro evento, inexistente, devuelto; **20 lectores a la vez con el mismo QR → entra 1** |
+| ms-compras | `ReporteServiceTest` (3) **(E2)** | Base H2 | vendidas / devueltas / ocupación / recaudación por sector, permisos, reporte sin ms-reservas |
+| ms-compras | `RecuperacionComprasTest` (5) **(E2)** | Base H2 | job de recuperación: cobrado → completa; sin cobro → cierra; reserva vencida → reintegra; pasarela caída → sigue en ERROR; reclamo único |
+| ms-compras | `ResilienciaPagosTest` (4) **(E2)** | Cliente REST real contra WireMock | reintentos con la misma Idempotency-Key, timeout, 4xx sin reintento, circuit breaker abierto (falla rápido sin llamar) |
+| ms-pagos | `PagoServiceTest` (8) | Base H2 | tarjetas de prueba, idempotencia, reintegros; **(E2)** caída simulada sin cobrar + reintento |
+| ms-fila | `FilaServiceTest` (8) **(E2)** | **Redis real** | orden de llegada, reingreso, tandas, turno firmado, abandono, cierre, lock entre instancias |
+| ms-recomendaciones | `RecomendacionesTest` (7) **(E2)** | **MongoDB real** | preferencias, interesados por artista/ciudad, "también compraron" (aggregation), puntajes, idempotencia, reprogramación |
+| ms-notificaciones | `NotificacionesTest` (10) **(E2)** | **MongoDB real** + WireMock | los 4 tipos de aviso, mensaje repetido, proveedor caído → PENDIENTE → reintento, FALLIDA, ms-usuarios caído, usuario deshabilitado |
+| ms-bitacora | `BitacoraTest` (4) **(E2)** | **MongoDB real** | traza por correlation id en orden, filtros por operación / usuario / fecha |
 
-Además, la colección Postman (`postman/`) recorre el flujo completo con 59 aserciones y se puede correr con
+### 4.1 Tests de integración entre servicios (E2)
+
+`tests-integracion/` es un proyecto aparte que corre **contra el sistema completo levantado con docker compose**
+(todo por el gateway, con JWT reales de ms-usuarios). Se corren con `./scripts/tests-integracion.sh`.
+
+| Clase | Qué prueba (servicios involucrados) |
+|---|---|
+| `FlujoCompraIT` (3) | Compra completa: reserva → saga de pago → entradas con QR → email de confirmación (RabbitMQ + ms-notificaciones) → traza en la bitácora con el mismo correlation id en ms-pagos, ms-reservas y ms-compras → ingreso con QR (y rechazo del segundo) → reporte del organizador. Tarjeta rechazada → lugares liberados. Preferencias → aviso de artista favorito + recomendación. |
+| `FilaVirtualIT` (1) | Evento de alta demanda: la fila se abre sola por el mensaje de ms-eventos; sin turno 403; con el turno de otro cliente 403; con su turno 201. |
+| `CancelacionYCambioIT` (2) | Cancelar: entradas CANCELADAS, email a los compradores, no se puede reservar más. Reprogramar: email con la nueva fecha, entradas válidas, disponibilidad con la fecha nueva. |
+| `SeguridadIT` (6) | Público vs protegido, cada rol en sus endpoints, registro siempre CLIENTE, headers falsificados, internos 404, credenciales inválidas. |
+| `NoDobleVentaIT` (1) | 30 clientes reservan el mismo asiento a la vez contra las 2 instancias de ms-reservas: 1 × 201 y 29 × 409. |
+
+Última corrida: `Tests run: 13, Failures: 0, Errors: 0`.
+
+Además, la colección Postman (`postman/`) recorre el flujo completo con aserciones y se puede correr con
 `npx newman run postman/TicketYa.postman_collection.json`.
 
 ## 5. Trazabilidad especificación → prueba
 
 | Spec (openspec/specs) | Requisito | Prueba |
 |---|---|---|
-| reservas | No doble venta | `NoDobleVentaH2Test`, `NoDobleVentaPostgresTest`, `scripts/prueba-doble-venta.sh` |
+| reservas | No doble venta | `NoDobleVentaH2Test`, `NoDobleVentaPostgresTest`, `NoDobleVentaIT`, `scripts/prueba-doble-venta.sh`, prueba de carga |
 | reservas | Reserva temporal | `ReservaServiceTest.reservaEnZonaNoNumeradaCalculaMontoYVencimiento`, `pedidosConAsientosSuperpuestosSonTodoONada` |
 | reservas | Límite de entradas por cliente | `ReservaServiceTest.noSePuedeSuperarElLimiteDeEntradasPorCliente` |
 | reservas | Vencimiento y liberación | `unaReservaVencidaLiberaElAsientoYNoSePuedeConfirmar`, `liberarDosVecesSoloReponeElCupoUnaVez` |
-| compras | Pago de una reserva | `CompraServiceTest.pagoAprobado...`, `pagoRechazado...`, `noSePuedePagarLaReservaDeOtroCliente`, `noSePuedePagarUnaReservaVencida` |
-| compras | Idempotencia de la compra | `reintentarConLaMismaClave...`, `laMismaClaveNoSePuedeUsarParaOtraReserva`, `noSePuedeComprarDosVecesLaMismaReservaConClavesDistintas` |
-| compras | Fallos parciales | `siLaPasarelaNoResponde...`, `siLaReservaVencioMientrasSePagabaSeReintegraElDinero` |
-| compras | Pasarela simulada | `PagoServiceTest` |
-| devoluciones | Solicitud / resolución / cancelación | `DevolucionServiceTest` |
-| gestion-eventos | Publicación, suspensión, cancelación | `EventoServiceTest` |
-| busqueda-eventos | Criterios y orden | `BusquedaServiceTest` |
+| reservas (E2) | Turno de fila en eventos de alta demanda | `ReservaServiceTest` (3 casos de turno), `FilaVirtualIT` |
+| compras | Pago de una reserva | `CompraServiceTest`, `FlujoCompraIT` |
+| compras | Idempotencia de la compra | `reintentarConLaMismaClave...`, `laMismaClaveNoSePuedeUsarParaOtraReserva` |
+| compras | Fallos parciales | `siLaPasarelaNoResponde...`, `siLaReservaVencioMientrasSePagabaSeReintegraElDinero`, **(E2)** `RecuperacionComprasTest` |
+| compras (E2) | Resiliencia ante la pasarela | `ResilienciaPagosTest`, prueba de carga con fallas |
+| devoluciones | Solicitud / resolución / cancelación | `DevolucionServiceTest`, `CancelacionYCambioIT` |
+| gestion-eventos | Publicación, suspensión, cancelación, **(E2)** reprogramación | `EventoServiceTest`, `CancelacionYCambioIT` |
+| busqueda-eventos | Criterios, orden y **(E2)** cache | `BusquedaServiceTest`, `CacheRedisTest` |
 | gestion-lugares | Alta y consulta | colección Postman (carpeta 1) |
+| fila-virtual (E2) | Ingreso, tandas, turno | `FilaServiceTest`, `FilaVirtualIT` |
+| control-acceso (E2) | Validación del QR | `AccesoServiceTest`, `FlujoCompraIT` |
+| recomendaciones (E2) | Preferencias y sugerencias | `RecomendacionesTest`, `FlujoCompraIT` |
+| notificaciones (E2) | Avisos de compra, cancelación, cambio, artista | `NotificacionesTest`, `FlujoCompraIT`, `CancelacionYCambioIT` |
+| reportes (E2) | Reporte del organizador | `ReporteServiceTest`, `FlujoCompraIT` |
+| seguridad (E2) | JWT y roles | `SeguridadEndpointsTest`, `UsuarioServiceTest`, `SeguridadIT` |
+| trazabilidad (E2) | Log centralizado | `BitacoraTest`, `FlujoCompraIT` |

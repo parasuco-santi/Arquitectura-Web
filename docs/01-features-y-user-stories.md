@@ -1,8 +1,9 @@
 # Features y User Stories
 
 Requerimientos de TicketYa transformados en features e historias de usuario **de todo el sistema**.
-Las historias de la entrega 1 tienen criterios de aceptación completos (formato *Dado / Cuando / Entonces*);
-las de la entrega 2 tienen criterios preliminares que se van a completar en esa entrega.
+Todas las historias tienen criterios de aceptación completos (formato *Dado / Cuando / Entonces*). Las de la
+entrega 2 (US-19 a US-28) se completaron en esta entrega; al lado de cada criterio importante se indica el test
+que lo verifica.
 
 Roles: **Cliente**, **Organizador**, **Administrador**, **Personal de acceso**.
 Los números entre paréntesis refieren a la sección FUNCIONALIDAD de la consigna.
@@ -14,12 +15,13 @@ Los números entre paréntesis refieren a la sección FUNCIONALIDAD de la consig
 | F3. Búsqueda de eventos (9) | US-08, US-09 | 1 | ms-eventos |
 | F4. Reserva y compra de entradas (4, 5) | US-10 a US-15 | 1 | ms-reservas, ms-compras, ms-pagos |
 | F5. Devoluciones y cancelaciones (7) | US-16 a US-18 | 1 | ms-compras |
-| F6. Fila virtual (6) | US-19, US-20 | 2 | (a definir) |
-| F7. Control de acceso con QR (8) | US-21 | 2 | ms-compras / ms-acceso |
-| F8. Preferencias y recomendaciones (10) | US-22, US-23 | 2 | ms-usuarios (NoSQL) |
-| F9. Notificaciones (11) | US-24 a US-26 | 2 | ms-notificaciones |
-| F10. Reportes para organizadores (12) | US-27 | 2 | ms-reportes |
-| F11. Seguridad y usuarios | US-28 | 2 | ms-usuarios + gateway |
+| F6. Fila virtual (6) | US-19, US-20 | 2 | ms-fila (Redis), ms-reservas |
+| F7. Control de acceso con QR (8) | US-21 | 2 | ms-compras |
+| F8. Preferencias y recomendaciones (10) | US-22, US-23 | 2 | ms-recomendaciones (MongoDB) |
+| F9. Notificaciones (11) | US-24 a US-26 | 2 | ms-notificaciones (MongoDB) |
+| F10. Reportes para organizadores (12) | US-27 | 2 | ms-compras |
+| F11. Seguridad y usuarios | US-28 | 2 | ms-usuarios + api-gateway |
+| F12. Trazabilidad (consigna no funcional) | US-29 | 2 | todos + ms-bitacora (MongoDB) |
 
 ---
 
@@ -200,43 +202,155 @@ personas con la misma entrada.
 
 1. **Cuando** se cancela un evento, **entonces** todas las entradas válidas pasan a CANCELADA y se pide el
    reintegro de cada una.
-2. **Se notifica** a cada comprador (entrega 1: registro en el log; entrega 2: email/push).
+2. **Se notifica** a cada comprador por email (entrega 2, ver US-25).
 3. **Las solicitudes** de devolución pendientes de ese evento se cierran.
 4. **Si** se procesa dos veces la cancelación, no hay reintegros duplicados.
 
 ---
 
-## Entrega 2 (criterios preliminares)
+## F6. Fila virtual (entrega 2)
+
+> Decisión: la fila se habilita solo para los eventos marcados como **alta demanda** (`altaDemanda: true`).
+> Para el resto se reserva directo como en la entrega 1.
 
 ### US-19 Ingresar a la fila virtual
 **Como** cliente **quiero** entrar a una fila virtual al abrirse la venta de un evento de alta demanda **para**
-comprar en orden de llegada.
-- Al abrirse la venta, los clientes reciben un turno y ven su posición actualizada.
-- Solo pueden reservar los clientes habilitados en la tanda actual.
+comprar en orden de llegada y sin que se caiga el sitio.
+
+Criterios de aceptación:
+1. **Dado** un evento de alta demanda recién publicado, **cuando** ms-eventos emite `evento.publicado`,
+   **entonces** ms-fila abre la fila automáticamente (sin intervención del organizador).
+2. **Dado** un cliente logueado, **cuando** ingresa a la fila, **entonces** recibe su posición (1 = el próximo),
+   la cantidad de clientes esperando y una espera estimada en segundos.
+3. **Cuando** ingresa dos veces, **entonces** conserva su lugar original (no vuelve al final ni ocupa dos lugares).
+4. **Cuando** consulta "mi turno", **entonces** ve su posición actualizada; si ya fue habilitado ve el estado
+   HABILITADO y un **turno firmado** con su vencimiento.
+5. **Dado** un evento de alta demanda, **cuando** un cliente intenta reservar **sin** turno, con un turno vencido,
+   de otro evento o de otro cliente, **entonces** recibe 403 (FilaVirtualIT).
+6. **Cuando** abandona la fila (DELETE), **entonces** sale y los que estaban detrás avanzan un lugar.
+7. **Si** el evento se cancela, **entonces** la fila se cierra y no entra nadie más.
 
 ### US-20 Habilitar tandas
 **Como** sistema **quiero** habilitar a los clientes de a tandas **para** no saturar el servicio de reservas.
-- Cada N segundos se habilita la siguiente tanda; el tamaño es configurable por evento.
-- Un cliente habilitado tiene un tiempo máximo para empezar su compra.
+
+1. **Cada** N segundos (por defecto 10) se habilita la siguiente tanda de M clientes (por defecto 100) en orden
+   estricto de llegada.
+2. **El organizador** del evento (o un ADMIN) puede cambiar el tamaño de tanda, el intervalo y los minutos para
+   comprar; otro organizador recibe 403.
+3. **Un cliente habilitado** tiene un tiempo máximo (por defecto 10 minutos) para empezar su reserva; pasado ese
+   tiempo el turno deja de servir.
+4. **Aunque** ms-fila corra en varias instancias, cada tanda se habilita una sola vez (lock en Redis) y ningún
+   cliente se habilita dos veces (FilaServiceTest).
+
+## F7. Control de acceso (entrega 2)
 
 ### US-21 Validar el QR en el ingreso
-**Como** personal de acceso **quiero** escanear el QR **para** dejar pasar solo entradas válidas.
-- Se valida que la entrada exista, sea de ese evento y esté VALIDA; se marca UTILIZADA.
-- Un QR ya utilizado, devuelto o cancelado se rechaza con el motivo (un QR no puede ingresar dos veces).
+**Como** personal de acceso **quiero** escanear el QR de la entrada **para** dejar pasar solo entradas válidas.
+
+1. **Dado** un QR de una entrada VALIDA del evento, **cuando** lo escaneo, **entonces** el sistema responde
+   PERMITIDO con el sector / fila / asiento y la entrada pasa a UTILIZADA con la fecha y la puerta.
+2. **Cuando** escaneo un QR ya utilizado, **entonces** responde 409 YA_UTILIZADA indicando por qué puerta y a
+   qué hora ingresó.
+3. **Cuando** el QR es de otro evento, no existe, o la entrada está DEVUELTA o CANCELADA, **entonces** se rechaza
+   con el motivo (OTRO_EVENTO, INEXISTENTE, DEVUELTA, CANCELADA).
+4. **Si** el mismo QR se escanea a la vez en varias puertas, **entonces** entra una sola vez (AccesoServiceTest,
+   20 lectores concurrentes).
+5. **Cada** validación (aceptada o no) queda registrada; el organizador puede ver cuántos ingresaron.
+6. **Solo** el rol ACCESO puede validar (403 para los demás).
+
+## F8. Preferencias y recomendaciones (entrega 2)
 
 ### US-22 Registrar mis preferencias
-**Como** cliente **quiero** guardar tipos de evento, artistas favoritos y ciudad **para** recibir sugerencias.
+**Como** cliente **quiero** guardar los tipos de evento, mis artistas favoritos y mi ciudad **para** recibir
+sugerencias y avisos.
+
+1. **Cuando** guardo mis preferencias (PUT), **entonces** se reemplazan completas y las puedo consultar (GET).
+2. **Si** nunca las cargué, **entonces** el GET devuelve listas vacías (no 404).
+3. **Los artistas** y la ciudad se comparan sin importar mayúsculas ni espacios de más ("los piojos" = "Los Piojos").
+4. **Solo** el rol CLIENTE tiene preferencias.
 
 ### US-23 Recibir recomendaciones
-**Como** cliente **quiero** ver eventos sugeridos según mi historial ("quienes compraron X también compraron Y").
+**Como** cliente **quiero** ver eventos sugeridos según mis preferencias y mi historial **para** descubrir eventos.
 
-### US-24 / US-25 / US-26 Notificaciones
-**Como** cliente **quiero** recibir email o push al confirmar una compra (US-24), cuando cancelan o cambian un
-evento (US-25) y cuando un artista favorito publica un evento en mi ciudad (US-26).
-- El envío es asincrónico y con reintentos; una falla del servicio de notificaciones no afecta la compra.
+1. **Cuando** pido mis recomendaciones, **entonces** veo eventos con un puntaje y los motivos ("participa X, uno
+   de tus artistas favoritos", "quienes compraron ... también compraron este", "te gustan los eventos de tipo
+   RECITAL y es en tu ciudad").
+2. **No** se sugieren eventos que ya compré, cancelados ni pasados.
+3. **Cualquiera** (sin login) puede ver, para un evento, "quienes compraron entradas para este evento también
+   compraron para..." ordenado por cantidad de compradores en común.
+4. **Las** recomendaciones se arman con datos que llegan por mensajes (eventos publicados, cancelados,
+   reprogramados y compras confirmadas): si ms-eventos está caído las recomendaciones siguen funcionando.
+5. **Si** un mensaje de compra llega repetido, el historial no se duplica.
+
+## F9. Notificaciones (entrega 2)
+
+### US-24 Aviso de compra confirmada
+**Como** cliente **quiero** recibir un email cuando se confirma mi compra **para** tener el comprobante.
+
+1. **Cuando** una compra queda APROBADA, **entonces** recibo un email con el evento, la fecha, la cantidad de
+   entradas y el total (FlujoCompraIT).
+2. **El envío** es asincrónico: si ms-notificaciones o el proveedor de email están caídos, la compra igual se
+   aprueba y el email sale cuando se recuperan (outbox + RabbitMQ + reintentos).
+3. **Si** el mensaje llega dos veces, recibo un solo email.
+
+### US-25 Aviso de cancelación o cambio de fecha
+**Como** cliente **quiero** enterarme si cancelan o cambian la fecha de un evento para el que tengo entradas.
+
+1. **Cuando** un ADMIN cancela un evento, **entonces** cada comprador recibe un email con el motivo y el aviso de
+   que se le reintegra el dinero (CancelacionYCambioIT).
+2. **Cuando** el organizador reprograma el evento, **entonces** cada comprador recibe un email con la fecha
+   anterior y la nueva; sus entradas siguen siendo válidas.
+3. **Si** se reprograma dos veces, se avisa las dos veces.
+
+### US-26 Aviso de artista favorito en mi ciudad
+**Como** cliente **quiero** que me avisen cuando un artista favorito publica un evento en mi ciudad.
+
+1. **Dado** que tengo a "Los Piojos" como favorito y vivo en La Plata, **cuando** se publica un evento de Los
+   Piojos en La Plata, **entonces** recibo un email (FlujoCompraIT).
+2. **Si** el evento es en otra ciudad, no recibo nada.
+
+Criterios comunes a US-24..26:
+- Cada usuario ve su bandeja con `GET /api/notificaciones` (estado ENVIADA, PENDIENTE, FALLIDA o DESCARTADA).
+- **Si** el proveedor falla, la notificación queda PENDIENTE y se reintenta con espera creciente hasta 5 veces;
+  después queda FALLIDA. A un usuario deshabilitado no se le envía (DESCARTADA).
+
+## F10. Reportes (entrega 2)
 
 ### US-27 Reportes del organizador
-**Como** organizador **quiero** ver entradas vendidas y devueltas por sector, % de ocupación y recaudación de mis eventos.
+**Como** organizador **quiero** ver las entradas vendidas y devueltas por sector, el porcentaje de ocupación y la
+recaudación de mis eventos **para** seguir las ventas.
+
+1. **Cuando** pido el reporte de un evento mío, **entonces** veo por sector: capacidad, vendidas, devueltas,
+   canceladas, vigentes, ingresaron, % de ocupación y recaudación (neta de reintegros), y los totales.
+2. **El** % de ocupación = entradas vigentes / capacidad del sector.
+3. **Cuando** pido el reporte de un evento de otro organizador, **entonces** recibo 403; un ADMIN puede ver todos.
+4. **Si** ms-reservas no responde, el reporte sale igual con las ventas pero sin la ocupación
+   (`ocupacionDisponible: false`).
+
+## F11. Seguridad (entrega 2)
 
 ### US-28 Autenticación y roles
-**Como** usuario **quiero** iniciar sesión y que cada endpoint solo sea accesible por los roles correspondientes (JWT).
+**Como** usuario **quiero** iniciar sesión y que cada endpoint solo sea accesible por los roles correspondientes.
+
+1. **Cuando** me registro (POST /api/auth/registro), **entonces** se crea siempre un usuario CLIENTE (los otros
+   roles los da de alta un ADMIN).
+2. **Cuando** inicio sesión con email y contraseña correctos, **entonces** recibo un JWT con mi id y rol que
+   vence a las 8 horas; si me equivoco recibo 401 con el mismo mensaje sea el email o la contraseña.
+3. **Sin** token solo puedo usar los endpoints públicos (catálogo, búsqueda, disponibilidad, login/registro).
+4. **Con** un token de otro rol recibo 403; con un token vencido, con otra firma o de otro emisor, 401.
+5. **No** puedo hacerme pasar por otro usuario mandando los headers `X-Usuario-Id` / `X-Rol` (el gateway los pisa).
+6. **Cada** endpoint queda accesible solo para sus roles (matriz en docs/04; SeguridadEndpointsTest prueba
+   cada endpoint con cada rol).
+
+## F12. Trazabilidad (entrega 2)
+
+### US-29 Seguir una operación en el log centralizado
+**Como** administrador **quiero** consultar las operaciones críticas y seguir una operación entre servicios
+**para** investigar problemas.
+
+1. **Cada** request HTTP queda en el log con endpoint, usuario, rol, código de respuesta y tiempo.
+2. **Cada** operación crítica (compra, cobro, devolución, cancelación, ingreso al evento, ...) queda registrada en
+   ms-bitacora con el `X-Correlation-Id` que generó el gateway.
+3. **Cuando** consulto `/api/bitacora/trazas/{correlationId}`, **entonces** veo en orden lo que registró cada
+   servicio (ej. una compra: ms-pagos → ms-reservas → ms-compras) (FlujoCompraIT).
+4. **Si** RabbitMQ no está disponible, la operación de negocio no falla (el registro queda en el log local).
