@@ -119,6 +119,21 @@ public class EventoController {
         return eventoService.publicar(id, usuarioId, Rol.desde(rol));
     }
 
+    @PostMapping("/{id}/reprogramar")
+    @Operation(summary = "Reprogramar (cambiar la fecha de) un evento publicado",
+            description = "Organizador dueño o ADMIN. Se actualiza la disponibilidad y se notifica a los compradores "
+                    + "(asincrónico). El plazo de devolución de 72 hs pasa a contarse desde la nueva fecha.")
+    @ApiResponse(responseCode = "200", description = "Evento reprogramado")
+    @ApiResponse(responseCode = "403", description = "No es el organizador del evento",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(responseCode = "409", description = "El evento está en borrador, cancelado o finalizado",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    public EventoResponse reprogramar(@PathVariable Long id, @Valid @RequestBody ReprogramacionRequest body,
+                                      @Parameter(hidden = true) @RequestHeader("X-Usuario-Id") Long usuarioId,
+                                      @Parameter(hidden = true) @RequestHeader(value = "X-Rol", required = false) String rol) {
+        return eventoService.reprogramar(id, body.fechaHora(), body.motivo(), usuarioId, Rol.desde(rol));
+    }
+
     @PostMapping("/{id}/suspender")
     @Operation(summary = "Suspender un evento (solo ADMIN)", description = "Frena las ventas sin cancelar las entradas ya vendidas.")
     @ApiResponse(responseCode = "403", description = "No es administrador",

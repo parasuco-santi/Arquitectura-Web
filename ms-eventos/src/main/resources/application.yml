@@ -16,6 +16,17 @@ spring:
       hibernate:
         jdbc.batch_size: 100
         order_inserts: true
+  cache:
+    type: redis
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: 6379
+      timeout: 500ms
+  rabbitmq:
+    host: ${RABBIT_HOST:localhost}
+    username: ticketya
+    password: ticketya
 
 servicios:
   timeout-ms: 3000
@@ -34,7 +45,18 @@ management:
     web:
       exposure:
         include: health,info
+  health:
+    # si Redis o RabbitMQ se caen el servicio sigue atendiendo (cache y mensajes son best effort)
+    redis:
+      enabled: false
+    rabbit:
+      enabled: false
+
+outbox:
+  intervalo-ms: 1000
 
 logging:
+  pattern:
+    level: "%5p [${spring.application.name:},%X{correlationId:-}]"
   level:
     com.ticketya: INFO
